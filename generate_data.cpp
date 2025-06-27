@@ -89,8 +89,8 @@ int main(int argc, char** argv) {
         std::ostringstream oss;
         oss << "{" <<
             "\"x0\":" << X0 << "," <<
-            "\"x1\":" << X1 << "," <<
             "\"y0\":" << Y0 << "," <<
+            "\"x1\":" << X1 << "," <<
             "\"y1\":" << Y1 <<
             "}" << ((i == pointsCount - 1) ? "" : ",") << "\n";
 
