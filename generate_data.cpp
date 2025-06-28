@@ -4,6 +4,7 @@
 #include <sstream>
 #include <string>
 #include <fstream>
+#include <iomanip>
 #include <array>
 
 #define EARTH_RADIUS 6378
@@ -87,6 +88,7 @@ int main(int argc, char** argv) {
         haversineSum += answer;
 
         std::ostringstream oss;
+        oss << std::fixed << std::setprecision(15);
         oss << "{" <<
             "\"x0\":" << X0 << "," <<
             "\"y0\":" << Y0 << "," <<
@@ -99,6 +101,7 @@ int main(int argc, char** argv) {
     }
 
     std::cout << "Average haversine: " << haversineSum / pointsCount << "\n";
+    answers.push_back(haversineSum);
 
     jsonOutput.append(" ]");
 
@@ -112,7 +115,7 @@ int main(int argc, char** argv) {
 
     std::cout << "Json file saved\n";
 
-    std::ofstream out(std::string("bin_") + outputFile + ".bin", std::ios::binary);
+    std::ofstream out(std::string("bin_") + outputFile + ".bin");
     if (!out) return 1;
 
     size_t size = answers.size();

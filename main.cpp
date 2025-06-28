@@ -2,15 +2,22 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
-#include <array>
 #include <cmath>
 #include <assert.h>
 #include <sstream>
+#include <iomanip>
+
+#define EARTH_RADIUS 6378
 
 typedef double f64;
 
 struct Pair {
     f64 X0; f64 Y0; f64 X1; f64 Y1;
+};
+
+struct Answers {
+    std::vector<f64> data;
+    f64              haversineSum;
 };
 
 static f64 square(f64 x) {
@@ -43,8 +50,30 @@ static f64 haversine(f64 X0, f64 Y0, f64 X1, f64 Y1, f64 radius) {
     return radius * c;
 }
 
-std::vector<f64> readAnswer(std::string path) {
+Answers readAnswers(std::string path) {
+    std::ifstream answersFile(path, std::ios::binary);
 
+    if (!answersFile.is_open()) {
+        std::cout << "Failed to open answers file! \n";
+        return {};
+    }
+
+    size_t size = 0;
+    answersFile.read(reinterpret_cast<char*>(&size), sizeof(size));
+    std::vector<f64> answers(size);
+
+    for (int i = 0; i < size; ++i) {
+        f64 temp = 0;
+        answersFile.read(reinterpret_cast<char*>(&answers.at(i)), sizeof(answers.at(i)));
+        std::cout << answers.at(i) << "\n";
+    }
+
+    f64 haversineSum = answers.back();
+    answers.pop_back();
+    return Answers {
+        answers,
+        haversineSum
+    };
 }
 
 std::vector<Pair> parsePoints(std::string path) {
@@ -72,7 +101,7 @@ std::vector<Pair> parsePoints(std::string path) {
             case '{':
                 parsedPairs.push_back({0, 0, 0, 0});
                 currentPair++;
-                break;
+                continue;
             case ':':
                 readingValue = true;
                 continue;
@@ -83,12 +112,14 @@ std::vector<Pair> parsePoints(std::string path) {
             case '"':
                 readingField = !readingField;
                 continue;
-            default:
+            case '[':
+            case ']':
                 continue;
+            default:
+                break;
         }
-        assert(readingValue != readingField && ("Something went wrong, we can't be reading the value and the field at the same time!"));
-
         if (std::isspace(contents.at(i))) continue;
+
         if(readingField) {
             field.push_back(contents.at(i));
         }
@@ -98,18 +129,19 @@ std::vector<Pair> parsePoints(std::string path) {
         }
 
         if (!readingField && !readingValue) {
-            if(field == "X0") {
+
+            if(field == "x0") {
                 parsedPairs.at(currentPair).X0 = std::stod(value);
-            } else if (field == "Y0") {
+            } else if (field == "y0") {
                 parsedPairs.at(currentPair).Y0 = std::stod(value);
-            } else if (field == "X1") {
+            } else if (field == "x1") {
                 parsedPairs.at(currentPair).X1 = std::stod(value);
-            } else if (field == "Y1") {
+            } else if (field == "y1") {
                 parsedPairs.at(currentPair).Y1 = std::stod(value);
             }
 
-            field = "";
-            value = "";
+            field.clear();
+            value.clear();
         }
     }
 
@@ -117,11 +149,47 @@ std::vector<Pair> parsePoints(std::string path) {
 }
 
 int main(int argc, char** argv) {
+    std::cout << std::fixed << std::setprecision(15);
 
+    if (argc == 1) {
+        std::cout << "Usage: [pairs.json] [answers.bin]";
+        return 0;
+    }
 
+    if (argc != 3) {
+        std::cout << "Please input all arguments!";
+        return 0;
+    }
 
+    std::string jsonFile = argv[1];
+    std::string answersFile  = argv[2];
 
+    std::vector<Pair> pairs = parsePoints(jsonFile);
+    Answers answers = readAnswers(answersFile);
 
+    f64 haversineSum = 0;
+    for (int i = 0; i < pairs.size(); ++i) {
+        f64 val = haversine(
+            pairs.at(i).X0,
+            pairs.at(i).Y0,
+            pairs.at(i).X1,
+            pairs.at(i).Y1,
+            EARTH_RADIUS
+        );
 
+        std::cout << answers.data.at(i) << "  " << val << "\n";
+        haversineSum += val;
+    }
+
+    std::cout << "Computed haversine sum: " << haversineSum << "\n";
+    std::cout << "Correct haversine sum: " << answers.haversineSum << "\n";
+
+    if (fabs(haversineSum - answers.haversineSum) < 1e-6) {
+        std::cout << "\n\n\n" << "THE ANSWER IS CORRECT!" << "\n\n\n";
+    } else {
+        std::cout << "\n\n\n" << "THE ANSWER IS WRONG!" << "\n\n\n";
+    }
+
+    return 0;
 }
 
