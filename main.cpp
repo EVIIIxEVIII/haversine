@@ -1,24 +1,13 @@
 #include <cctype>
 #include <iostream>
-#include <fstream>
-#include <vector>
 #include <cmath>
 #include <assert.h>
-#include <sstream>
 #include <iomanip>
 
+#include "file_reader.cpp"
+#include "timer.cpp"
+
 #define EARTH_RADIUS 6378
-
-typedef double f64;
-
-struct Pair {
-    f64 X0; f64 Y0; f64 X1; f64 Y1;
-};
-
-struct Answers {
-    std::vector<f64> data;
-    f64              haversineSum;
-};
 
 static f64 square(f64 x) {
     return x*x;
@@ -50,123 +39,49 @@ static f64 haversine(f64 X0, f64 Y0, f64 X1, f64 Y1, f64 radius) {
     return radius * c;
 }
 
-Answers readAnswers(std::string path) {
-    std::ifstream answersFile(path, std::ios::binary);
 
-    if (!answersFile.is_open()) {
-        std::cout << "Failed to open answers file! \n";
-        return {};
+void validate(f64 computed, f64 answer) {
+    std::cout << "Computed haversine sum: " << computed << "\n";
+    std::cout << "Correct haversine sum: " << answer << "\n";
+
+    if (fabs(computed - answer) < 1e-6) {
+        std::cout << "\n\n\n" << "THE ANSWER IS CORRECT!" << "\n\n\n";
+    } else {
+        std::cout << "\n\n\n" << "THE ANSWER IS WRONG!" << "\n\n\n";
     }
-
-    size_t size = 0;
-    answersFile.read(reinterpret_cast<char*>(&size), sizeof(size));
-    std::vector<f64> answers(size);
-
-    for (int i = 0; i < size; ++i) {
-        f64 temp = 0;
-        answersFile.read(reinterpret_cast<char*>(&answers.at(i)), sizeof(answers.at(i)));
-        std::cout << answers.at(i) << "\n";
-    }
-
-    f64 haversineSum = answers.back();
-    answers.pop_back();
-    return Answers {
-        answers,
-        haversineSum
-    };
-}
-
-std::vector<Pair> parsePoints(std::string path) {
-    std::vector<Pair> parsedPairs;
-    std::ifstream jsonFile(path);
-
-    if (!jsonFile.is_open()) {
-        std::cout << "Failed to open json file! \n";
-        return {};
-    }
-
-    std::stringstream buffer;
-    buffer << jsonFile.rdbuf();
-
-    std::string contents = buffer.str();
-    std::string field = "";
-    std::string value = "";
-
-    bool readingField = false;
-    bool readingValue = false;
-
-    int currentPair = -1;
-    for (int i = 0; i < contents.size(); ++i) {
-        switch (contents.at(i)) {
-            case '{':
-                parsedPairs.push_back({0, 0, 0, 0});
-                currentPair++;
-                continue;
-            case ':':
-                readingValue = true;
-                continue;
-            case ',':
-            case '}':
-                readingValue = false;
-                break;
-            case '"':
-                readingField = !readingField;
-                continue;
-            case '[':
-            case ']':
-                continue;
-            default:
-                break;
-        }
-        if (std::isspace(contents.at(i))) continue;
-
-        if(readingField) {
-            field.push_back(contents.at(i));
-        }
-
-        if (readingValue) {
-            value.push_back(contents.at(i));
-        }
-
-        if (!readingField && !readingValue) {
-
-            if(field == "x0") {
-                parsedPairs.at(currentPair).X0 = std::stod(value);
-            } else if (field == "y0") {
-                parsedPairs.at(currentPair).Y0 = std::stod(value);
-            } else if (field == "x1") {
-                parsedPairs.at(currentPair).X1 = std::stod(value);
-            } else if (field == "y1") {
-                parsedPairs.at(currentPair).Y1 = std::stod(value);
-            }
-
-            field.clear();
-            value.clear();
-        }
-    }
-
-    return parsedPairs;
 }
 
 int main(int argc, char** argv) {
     std::cout << std::fixed << std::setprecision(15);
 
     if (argc == 1) {
-        std::cout << "Usage: [pairs.json] [answers.bin]";
+        std::cout << "Usage: [pairs.json] [answers.bin]" << "\n";
         return 0;
     }
 
     if (argc != 3) {
-        std::cout << "Please input all arguments!";
+        std::cout << "Please input all arguments!" << "\n";
         return 0;
     }
 
-    std::string jsonFile = argv[1];
-    std::string answersFile  = argv[2];
 
+    u64 cpuFreq = estimateCPUFreq(1000);
+    const char* jsonFile = argv[1];
+    const char* answersFile  = argv[2];
+
+    u64 parsePointsStart = readCPUTimer();
     std::vector<Pair> pairs = parsePoints(jsonFile);
-    Answers answers = readAnswers(answersFile);
+    u64 parsePointsEnd = readCPUTimer();
+    u64 parsePointsTime = parsePointsEnd - parsePointsStart;
 
+    printf("Input size: %lu \n", pairs.size());
+
+    u64 readAnswersStart = readCPUTimer();
+    Answers answers = readAnswers(answersFile);
+    u64 readAnswersEnd = readCPUTimer();
+    u64 readAnswersTime = readAnswersEnd - readAnswersStart;
+
+    u64 haversineStart = readCPUTimer();
     f64 haversineSum = 0;
     for (int i = 0; i < pairs.size(); ++i) {
         f64 val = haversine(
@@ -177,19 +92,21 @@ int main(int argc, char** argv) {
             EARTH_RADIUS
         );
 
-        std::cout << answers.data.at(i) << "  " << val << "\n";
         haversineSum += val;
     }
+    u64 haversineEnd = readCPUTimer();
+    u64 haversineTime = haversineEnd - haversineStart;
 
-    std::cout << "Computed haversine sum: " << haversineSum << "\n";
-    std::cout << "Correct haversine sum: " << answers.haversineSum << "\n";
+    u64 total = haversineTime + readAnswersTime + parsePointsTime;
 
-    if (fabs(haversineSum - answers.haversineSum) < 1e-6) {
-        std::cout << "\n\n\n" << "THE ANSWER IS CORRECT!" << "\n\n\n";
-    } else {
-        std::cout << "\n\n\n" << "THE ANSWER IS WRONG!" << "\n\n\n";
-    }
+    printf("\n\n");
+    printf("Total time: %f ms (CPU freq: %lu)\n", (f64)total/(f64)cpuFreq*1000, cpuFreq);
+    printf("Parse points time %lu (%f %%) \n", parsePointsTime, (f64)parsePointsTime/total * 100.);
+    printf("Read answers time %lu (%f %%) \n", readAnswersTime, (f64)readAnswersTime/total * 100.);
+    printf("Haversine time %lu (%f %%) \n", haversineTime, (f64)haversineTime/total * 100.);
+    printf("\n\n");
 
+    validate(haversineSum, answers.haversineSum);
     return 0;
 }
 
