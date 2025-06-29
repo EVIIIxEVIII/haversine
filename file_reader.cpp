@@ -3,6 +3,8 @@
 #include <iostream>
 #include <sstream>
 
+#include "simple_profiler.cpp"
+
 typedef double f64;
 struct Pair {
     f64 X0; f64 Y0; f64 X1; f64 Y1;
@@ -13,6 +15,7 @@ struct Answers {
     f64              haversineSum;
 };
 Answers readAnswers(std::string path) {
+    TimeFunction();
     std::ifstream answersFile(path, std::ios::binary);
 
     if (!answersFile.is_open()) {
@@ -38,6 +41,7 @@ Answers readAnswers(std::string path) {
 }
 
 std::vector<Pair> parsePoints(std::string path) {
+    TimeFunction();
     std::vector<Pair> parsedPairs;
     std::ifstream jsonFile(path);
 

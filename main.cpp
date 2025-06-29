@@ -5,7 +5,7 @@
 #include <iomanip>
 
 #include "file_reader.cpp"
-#include "timer.cpp"
+#include "simple_profiler.cpp"
 
 #define EARTH_RADIUS 6378
 
@@ -51,6 +51,23 @@ void validate(f64 computed, f64 answer) {
     }
 }
 
+f64 computeHaversineSum(std::vector<Pair>& pairs, Answers& answers) {
+    TimeFunction();
+    f64 haversineSum = 0;
+    for (int i = 0; i < pairs.size(); ++i) {
+        f64 val = haversine(
+            pairs.at(i).X0,
+            pairs.at(i).Y0,
+            pairs.at(i).X1,
+            pairs.at(i).Y1,
+            EARTH_RADIUS
+        );
+
+        haversineSum += val;
+    }
+    return haversineSum;
+}
+
 int main(int argc, char** argv) {
     std::cout << std::fixed << std::setprecision(15);
 
@@ -64,48 +81,18 @@ int main(int argc, char** argv) {
         return 0;
     }
 
-
-    u64 cpuFreq = estimateCPUFreq(1000);
+    startProfiling();
     const char* jsonFile = argv[1];
     const char* answersFile  = argv[2];
 
-    u64 parsePointsStart = readCPUTimer();
     std::vector<Pair> pairs = parsePoints(jsonFile);
-    u64 parsePointsEnd = readCPUTimer();
-    u64 parsePointsTime = parsePointsEnd - parsePointsStart;
 
     printf("Input size: %lu \n", pairs.size());
 
-    u64 readAnswersStart = readCPUTimer();
     Answers answers = readAnswers(answersFile);
-    u64 readAnswersEnd = readCPUTimer();
-    u64 readAnswersTime = readAnswersEnd - readAnswersStart;
+    f64 haversineSum = computeHaversineSum(pairs, answers);
 
-    u64 haversineStart = readCPUTimer();
-    f64 haversineSum = 0;
-    for (int i = 0; i < pairs.size(); ++i) {
-        f64 val = haversine(
-            pairs.at(i).X0,
-            pairs.at(i).Y0,
-            pairs.at(i).X1,
-            pairs.at(i).Y1,
-            EARTH_RADIUS
-        );
-
-        haversineSum += val;
-    }
-    u64 haversineEnd = readCPUTimer();
-    u64 haversineTime = haversineEnd - haversineStart;
-
-    u64 total = haversineTime + readAnswersTime + parsePointsTime;
-
-    printf("\n\n");
-    printf("Total time: %f ms (CPU freq: %lu)\n", (f64)total/(f64)cpuFreq*1000, cpuFreq);
-    printf("Parse points time %lu (%f %%) \n", parsePointsTime, (f64)parsePointsTime/total * 100.);
-    printf("Read answers time %lu (%f %%) \n", readAnswersTime, (f64)readAnswersTime/total * 100.);
-    printf("Haversine time %lu (%f %%) \n", haversineTime, (f64)haversineTime/total * 100.);
-    printf("\n\n");
-
+    endProfilingAndPrint();
     validate(haversineSum, answers.haversineSum);
     return 0;
 }

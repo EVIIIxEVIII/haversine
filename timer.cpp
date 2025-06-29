@@ -14,7 +14,7 @@ u64 readOSTimer() {
 }
 
 inline u64 readCPUTimer() {
-    return __builtin_ia32_rdtsc();
+	return __builtin_ia32_rdtsc();
 }
 
 u64 estimateCPUFreq(u64 ms) {
