@@ -5,7 +5,6 @@
 #include <iomanip>
 
 #include "file_reader.cpp"
-#include "simple_profiler.cpp"
 
 #define EARTH_RADIUS 6378
 

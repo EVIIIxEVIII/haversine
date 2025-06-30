@@ -83,6 +83,7 @@ std::vector<Pair> parsePoints(std::string path) {
             default:
                 break;
         }
+
         if (std::isspace(contents.at(i))) continue;
 
         if(readingField) {
