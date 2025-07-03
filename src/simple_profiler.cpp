@@ -94,7 +94,12 @@ static Profiler globalProfiler;
 
 static void printTimeElapsed(u64 totalTSCElapsed, Anchor *anchor, u64 cpuFreq) {
     f64 percent = 100.0 * ((f64)anchor->tscElapsedExclusive / (f64)totalTSCElapsed);
-    printf("   %s[%lu]: %lu (%.2f%%", anchor->label, anchor->hitCount, anchor->tscElapsedExclusive, percent);
+    printf("   %s[%lu]: %lu (%fms) (%.2f%%",
+           anchor->label, anchor->hitCount,
+           anchor->tscElapsedExclusive,
+           (f64)anchor->tscElapsedExclusive / cpuFreq * 1000.,
+           percent
+    );
 
     if(anchor->tscElapsedInclusive != anchor->tscElapsedExclusive) {
         f64 percentWithChildren = 100.0 * ((f64)anchor->tscElapsedInclusive / (f64)totalTSCElapsed);
