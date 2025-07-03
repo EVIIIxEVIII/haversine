@@ -13,6 +13,7 @@ struct Anchor {
     const char* label;
     u64 hitCount;
 
+    u64 processedData;
     u64 tscElapsedExclusive;
     u64 tscElapsedInclusive;
 };
@@ -30,14 +31,16 @@ static u32 globalProfilerParent;
 static Profiler globalProfiler;
 
 struct TimeScope {
-    TimeScope(const char* label_, u32 anchorIndex_) {
+    TimeScope(const char* label_, u32 anchorIndex_, u64 processedData_) {
         parentIndex = globalProfilerParent;
 
         anchorIndex = anchorIndex_;
         label = label_;
+        processedData = processedData_;
 
         Anchor *anchor = globalProfiler.anchors + anchorIndex;
         oldTSCElapsedInclusive = anchor->tscElapsedInclusive;
+        anchor->processedData += processedData;
 
         globalProfilerParent = anchorIndex;
         startTSC = readCPUTimer();
@@ -46,7 +49,6 @@ struct TimeScope {
     ~TimeScope() {
         u64 elapsed = readCPUTimer() - startTSC;
         globalProfilerParent = parentIndex;
-
 
         Anchor *parent = globalProfiler.anchors + parentIndex;
         Anchor *anchor = globalProfiler.anchors + anchorIndex;
@@ -60,19 +62,22 @@ struct TimeScope {
     }
 
     const char *label;
+    u64 processedData;
     u64 oldTSCElapsedInclusive;
     u64 startTSC;
     u32 parentIndex;
     u64 anchorIndex;
 };
 
+#define TimeThroughput(name, size) TimeScope NameConcat(Block, __LINE__)(name, __COUNTER__ + 1, size);
 #define NameConcat2(A, B) A##B
 #define NameConcat(A, B) NameConcat2(A, B)
-#define TimeBlock(name) TimeScope NameConcat(Block, __LINE__)(name, __COUNTER__ + 1);
+#define TimeBlock(name) TimeThroughput(name, 0);
 #define TimeFunction() TimeBlock(__func__)
 
 #else
 
+#define TimeThroughput(...)
 #define TimeBlock(...)
 #define TimeFunction(...)
 
@@ -87,7 +92,7 @@ static Profiler globalProfiler;
 
 #endif
 
-static void printTimeElapsed(u64 totalTSCElapsed, Anchor *anchor) {
+static void printTimeElapsed(u64 totalTSCElapsed, Anchor *anchor, u64 cpuFreq) {
     f64 percent = 100.0 * ((f64)anchor->tscElapsedExclusive / (f64)totalTSCElapsed);
     printf("   %s[%lu]: %lu (%.2f%%", anchor->label, anchor->hitCount, anchor->tscElapsedExclusive, percent);
 
@@ -95,6 +100,19 @@ static void printTimeElapsed(u64 totalTSCElapsed, Anchor *anchor) {
         f64 percentWithChildren = 100.0 * ((f64)anchor->tscElapsedInclusive / (f64)totalTSCElapsed);
         printf(", %.2f%% w/children", percentWithChildren);
     }
+
+    if(anchor->processedData) {
+        f64 megabyte = 1024. * 1024.;
+        f64 gigabyte = megabyte * 1024.;
+
+        f64 seconds = (f64)anchor->tscElapsedInclusive / (f64)cpuFreq;
+        f64 bytesPerSecond = (f64)anchor->processedData / seconds;
+        f64 megabytes = (f64)anchor->processedData / (f64) megabyte;
+        f64 gigabytesPerSecond = bytesPerSecond / gigabyte;
+
+        printf("   %.3fmb at %.2fgb/s", megabytes, gigabytesPerSecond);
+    }
+
     printf(")\n");
 }
 
@@ -115,7 +133,7 @@ void endProfilingAndPrint() {
     for (u32 index = 0; index < ArrayCount(globalProfiler.anchors); ++index) {
         Anchor *anchor = globalProfiler.anchors + index;
         if (anchor->tscElapsedInclusive) {
-            printTimeElapsed(totalCPUElapsed, anchor);
+            printTimeElapsed(totalCPUElapsed, anchor, cpuFreq);
         }
     }
 }

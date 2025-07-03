@@ -3,12 +3,13 @@
 #include <iostream>
 #include <sstream>
 #include <cstring>
+#include <sys/stat.h>
 
 #include "simple_profiler.cpp"
 
 typedef double f64;
 struct Pair {
-    f64 X0; f64 Y0; f64 X1; f64 Y1;
+    f64 X0, Y0, X1, Y1;
 };
 
 struct Answers {
@@ -17,7 +18,10 @@ struct Answers {
 };
 
 std::vector<char> readFileAsBin(std::string path) {
-    TimeFunction();
+    struct stat Stat;
+    stat(path.data(), &Stat);
+
+    TimeThroughput("readFileAsBin", Stat.st_size);
     std::ifstream file(path, std::ios::binary | std::ios::ate);
 
     if (!file.is_open()) {
@@ -62,7 +66,10 @@ Answers readAnswers(std::string path) {
 }
 
 std::string readFileAsString(const std::string& path) {
-    TimeFunction();
+    struct stat Stat;
+    stat(path.data(), &Stat);
+
+    TimeThroughput("readFileAsString", Stat.st_size);
     std::ifstream jsonFile(path);
 
     if (!jsonFile.is_open()) {
@@ -78,12 +85,16 @@ std::string readFileAsString(const std::string& path) {
 }
 
 std::vector<Pair> parsePoints(const std::string& path) {
-    TimeFunction();
+    struct stat Stat;
+    stat(path.data(), &Stat);
+
+    TimeThroughput("parsePoints", Stat.st_size);
     std::vector<Pair> parsedPairs;
     std::string field = "";
     std::string value = "";
 
     std::string contents = readFileAsString(path);
+
     bool readingField = false;
     bool readingValue = false;
 

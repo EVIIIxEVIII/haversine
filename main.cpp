@@ -38,7 +38,6 @@ static f64 haversine(f64 X0, f64 Y0, f64 X1, f64 Y1, f64 radius) {
     return radius * c;
 }
 
-
 void validate(f64 computed, f64 answer) {
     std::cout << "Computed haversine sum: " << computed << "\n";
     std::cout << "Correct haversine sum: " << answer << "\n";
@@ -50,8 +49,8 @@ void validate(f64 computed, f64 answer) {
     }
 }
 
-f64 computeHaversineSum(std::vector<Pair>& pairs, Answers& answers) {
-    TimeFunction();
+f64 computeHaversineSum(std::vector<Pair>& pairs) {
+    TimeThroughput("computeHaversineSum", pairs.size()*sizeof(Pair));
     f64 haversineSum = 0;
     for (int i = 0; i < pairs.size(); ++i) {
         f64 val = haversine(
@@ -89,7 +88,7 @@ int main(int argc, char** argv) {
     printf("Input size: %lu \n", pairs.size());
 
     Answers answers = readAnswers(answersFile);
-    f64 haversineSum = computeHaversineSum(pairs, answers);
+    f64 haversineSum = computeHaversineSum(pairs);
 
     endProfilingAndPrint();
     validate(haversineSum, answers.haversineSum);
