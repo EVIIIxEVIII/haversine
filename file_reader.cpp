@@ -2,6 +2,7 @@
 #include <vector>
 #include <iostream>
 #include <sstream>
+#include <cstring>
 
 #include "simple_profiler.cpp"
 
@@ -14,35 +15,54 @@ struct Answers {
     std::vector<f64> data;
     f64              haversineSum;
 };
-Answers readAnswers(std::string path) {
-    TimeFunction();
-    std::ifstream answersFile(path, std::ios::binary);
 
-    if (!answersFile.is_open()) {
+std::vector<char> readFileAsBin(std::string path) {
+    TimeFunction();
+    std::ifstream file(path, std::ios::binary | std::ios::ate);
+
+    if (!file.is_open()) {
         std::cout << "Failed to open answers file! \n";
         return {};
     }
 
-    size_t size = 0;
-    answersFile.read(reinterpret_cast<char*>(&size), sizeof(size));
+    std::streamsize fileSize = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    std::vector<char> buffer(fileSize);
+
+    if (!file.read(buffer.data(), fileSize)) {
+        std::cout << "Failed to read file into memory! \n";
+        return {};
+    }
+
+    return buffer;
+}
+
+Answers readAnswers(std::string path) {
+    TimeFunction();
+
+    std::vector<char> buffer = readFileAsBin(path);
+    if(buffer.empty()) return {};
+    const char* data = buffer.data();
+
+    const size_t size = *reinterpret_cast<const size_t*>(data);
+    data += sizeof(size_t);
+
     std::vector<f64> answers(size);
 
-    for (int i = 0; i < size; ++i) {
-        f64 temp = 0;
-        answersFile.read(reinterpret_cast<char*>(&answers.at(i)), sizeof(answers.at(i)));
-    }
+    std::memcpy(answers.data(), data, size * sizeof(f64));
 
     f64 haversineSum = answers.back();
     answers.pop_back();
+
     return Answers {
         answers,
         haversineSum
     };
 }
 
-std::vector<Pair> parsePoints(std::string path) {
+std::string readFileAsString(const std::string& path) {
     TimeFunction();
-    std::vector<Pair> parsedPairs;
     std::ifstream jsonFile(path);
 
     if (!jsonFile.is_open()) {
@@ -54,9 +74,16 @@ std::vector<Pair> parsePoints(std::string path) {
     buffer << jsonFile.rdbuf();
 
     std::string contents = buffer.str();
+    return contents;
+}
+
+std::vector<Pair> parsePoints(const std::string& path) {
+    TimeFunction();
+    std::vector<Pair> parsedPairs;
     std::string field = "";
     std::string value = "";
 
+    std::string contents = readFileAsString(path);
     bool readingField = false;
     bool readingValue = false;
 

@@ -1,58 +1,122 @@
 #include <stdio.h>
-#include <array>
 
-#pragma once
 #include "timer.cpp"
 
+#ifndef PROFILE
+#define PROFILE 0
+#endif
+
+#define ArrayCount(Array) (sizeof(Array)/sizeof((Array)[0]))
 typedef double f64;
 
 struct Anchor {
-    const char* name;
-    u64 time;
+    const char* label;
+    u64 hitCount;
+
+    u64 tscElapsedExclusive;
+    u64 tscElapsedInclusive;
 };
 
-std::array<Anchor, 100> anchors;
-size_t counter = 0;
-u64 totalStart = 0;
-u64 totalEnd = 0;
+#if PROFILE
+
+struct Profiler {
+    Anchor anchors[4096];
+
+    u64 startTSC;
+    u64 endTSC;
+};
+
+static u32 globalProfilerParent;
+static Profiler globalProfiler;
 
 struct TimeScope {
-    TimeScope(const char* funcName): funcName(funcName) {
-        start = readCPUTimer();
+    TimeScope(const char* label_, u32 anchorIndex_) {
+        parentIndex = globalProfilerParent;
+
+        anchorIndex = anchorIndex_;
+        label = label_;
+
+        Anchor *anchor = globalProfiler.anchors + anchorIndex;
+        oldTSCElapsedInclusive = anchor->tscElapsedInclusive;
+
+        globalProfilerParent = anchorIndex;
+        startTSC = readCPUTimer();
     }
 
     ~TimeScope() {
-        finish = readCPUTimer();
-        u64 time = finish - start;
-        anchors[counter] = Anchor{
-            funcName,
-            time
-        };
+        u64 elapsed = readCPUTimer() - startTSC;
+        globalProfilerParent = parentIndex;
 
-        counter++;
+
+        Anchor *parent = globalProfiler.anchors + parentIndex;
+        Anchor *anchor = globalProfiler.anchors + anchorIndex;
+
+        parent->tscElapsedExclusive -= elapsed;
+        anchor->tscElapsedExclusive += elapsed;
+        anchor->tscElapsedInclusive = oldTSCElapsedInclusive + elapsed;
+        ++anchor->hitCount;
+
+        anchor->label = label;
     }
 
-    const char* funcName;
-    u64 start;
-    u64 finish;
+    const char *label;
+    u64 oldTSCElapsedInclusive;
+    u64 startTSC;
+    u32 parentIndex;
+    u64 anchorIndex;
 };
 
+#define NameConcat2(A, B) A##B
+#define NameConcat(A, B) NameConcat2(A, B)
+#define TimeBlock(name) TimeScope NameConcat(Block, __LINE__)(name, __COUNTER__ + 1);
+#define TimeFunction() TimeBlock(__func__)
+
+#else
+
+#define TimeBlock(...)
+#define TimeFunction(...)
+
+struct Profiler {
+    Anchor anchors[1];
+
+    u64 startTSC;
+    u64 endTSC;
+};
+
+static Profiler globalProfiler;
+
+#endif
+
+static void printTimeElapsed(u64 totalTSCElapsed, Anchor *anchor) {
+    f64 percent = 100.0 * ((f64)anchor->tscElapsedExclusive / (f64)totalTSCElapsed);
+    printf("   %s[%lu]: %lu (%.2f%%", anchor->label, anchor->hitCount, anchor->tscElapsedExclusive, percent);
+
+    if(anchor->tscElapsedInclusive != anchor->tscElapsedExclusive) {
+        f64 percentWithChildren = 100.0 * ((f64)anchor->tscElapsedInclusive / (f64)totalTSCElapsed);
+        printf(", %.2f%% w/children", percentWithChildren);
+    }
+    printf(")\n");
+}
+
 void startProfiling() {
-    counter = 0;
-    anchors = {};
-    totalStart = readCPUTimer();
+    globalProfiler.startTSC = readCPUTimer();
 }
 
 void endProfilingAndPrint() {
-    totalEnd = readCPUTimer();
+    globalProfiler.endTSC = readCPUTimer();
     u64 cpuFreq = estimateCPUFreq(1000);
-    u64 total = totalEnd - totalStart;
 
-    printf("Total time:  %lu %.9g ms (CPU freq: %lu)\n", total, (f64)total/(f64)cpuFreq*1000., cpuFreq);
-    for (u32 i = 0; i < counter; ++i) {
-        printf("    %s took %lu (%f %%)\n", anchors[i].name, anchors[i].time, (f64)anchors[i].time / (f64)total * 100);
+    u64 totalCPUElapsed = globalProfiler.endTSC - globalProfiler.startTSC;
+
+    if(cpuFreq) {
+        printf("\n Total time: %0.fms (CPU freq %lu)\n", 1000.0 * (f64)totalCPUElapsed / (f64)cpuFreq, cpuFreq);
+    }
+
+    for (u32 index = 0; index < ArrayCount(globalProfiler.anchors); ++index) {
+        Anchor *anchor = globalProfiler.anchors + index;
+        if (anchor->tscElapsedInclusive) {
+            printTimeElapsed(totalCPUElapsed, anchor);
+        }
     }
 }
 
-#define TimeFunction() TimeScope time_scope(__func__)
-#define TimeBlock(name) TimeScope time_scope(name)
