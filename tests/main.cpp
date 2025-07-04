@@ -14,8 +14,8 @@ Tester test_read(const char* fileName, Tester tester) {
     struct stat Stat;
     stat(fileName, &Stat);
 
-    char* buffer = (char*)malloc(Stat.st_size * sizeof(char));
 
+    char* buffer = (char*)malloc(Stat.st_size * sizeof(char));
     while (shouldTest(tester)) {
         int fd = open(fileName, O_RDONLY, 0644);
 
@@ -39,7 +39,8 @@ Tester test_read(const char* fileName, Tester tester) {
         close(fd);
     }
 
-    printResult(tester, "Test read");
+    free(buffer);
+    printResult(tester, "Test read", Stat.st_size);
     return tester;
 }
 
@@ -47,8 +48,8 @@ Tester test_read(const char* fileName, Tester tester) {
 Tester test_fread(const char* fileName, Tester tester) {
     struct stat Stat;
     stat(fileName, &Stat);
-    char* buffer = (char*)malloc(Stat.st_size * sizeof(char));
 
+    char* buffer = (char*)malloc(Stat.st_size * sizeof(char));
     while (shouldTest(tester)) {
         FILE *file = fopen(fileName, "r");
 
@@ -72,7 +73,8 @@ Tester test_fread(const char* fileName, Tester tester) {
         fclose(file);
     }
 
-    printResult(tester, "Test read");
+    free(buffer);
+    printResult(tester, "Test read", Stat.st_size);
     return tester;
 
 }
@@ -99,7 +101,7 @@ Tester test_ifstream(const char* fileName, Tester tester) {
         std::string contents = buffer.str();
     }
 
-    printResult(tester, "Test read");
+    printResult(tester, "Test read", Stat.st_size);
     return tester;
 }
 

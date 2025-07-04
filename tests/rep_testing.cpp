@@ -31,7 +31,7 @@ void addTimeToTester(Tester& tester, u64 elapsed) {
     }
 
     tester.totalTime += elapsed;
-    tester.totalCount ++;
+    tester.totalCount++;
 }
 
 bool shouldTest(Tester& tester) {
@@ -42,10 +42,29 @@ bool shouldTest(Tester& tester) {
     return true;
 }
 
-void printResult(const Tester& tester, const char *functionName) {
+f64 printThroughput(f64 time, u64 size) {
+    f64 megabyte = 1024. * 1024.;
+    f64 gigabyte = megabyte * 1024.;
+
+    f64 bytesPerSecond = (f64)size / time;
+    f64 megabytes = (f64)size / (f64) megabyte;
+    f64 gigabytesPerSecond = bytesPerSecond / gigabyte;
+
+    printf("   %.3fmb at %.2fgb/s \n", megabytes, gigabytesPerSecond);
+    return gigabytesPerSecond;
+}
+
+void printResult(const Tester& tester, const char *functionName, u64 processedData) {
     printf("---- %s ----\n", functionName);
 
-    printf("Min time: %fms \n", (f64) tester.minTime / (f64) tester.cpuFreq * 1000.);
-    printf("Avg time: %fms \n", ((f64) tester.totalTime / (f64) tester.totalCount) / (f64) tester.cpuFreq * 1000.);
-    printf("Max time: %fms \n", (f64) tester.maxTime / (f64) tester.cpuFreq * 1000.);
+    f64 minTimeInSec = (f64) tester.minTime / (f64) tester.cpuFreq;
+    f64 avgTimeInSec = ((f64) tester.totalTime / (f64) tester.totalCount) / (f64) tester.cpuFreq;
+    f64 maxTimeInSec = (f64) tester.maxTime / (f64) tester.cpuFreq;
+
+    printf("Min time: %fms", minTimeInSec * 1000.);
+    printThroughput(minTimeInSec, processedData);
+    printf("Avg time: %fms", avgTimeInSec * 1000.);
+    printThroughput(avgTimeInSec, processedData);
+    printf("Max time: %fms", maxTimeInSec * 1000.);
+    printThroughput(maxTimeInSec, processedData);
 }
