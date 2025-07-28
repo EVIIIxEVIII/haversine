@@ -1,5 +1,4 @@
-
-#include "../src/timer.cpp"
+#include "timer.cpp"
 #include <stdio.h>
 
 typedef double f64;

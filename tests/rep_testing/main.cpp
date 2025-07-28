@@ -1,5 +1,5 @@
-#include <iostream>
 #include <stdio.h>
+#include <iostream>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -116,7 +116,7 @@ int main (int argc, char** argv) {
     u64 cpuFreq = estimateCPUFreq(1000);
 
     Tester tester              = Tester{};
-    tester.tryForTime          = 5;
+    tester.tryForTime          = 1;
     tester.cpuFreq             = cpuFreq;
     tester.minTime             = INT_MAX;
     tester.maxTime             = 0;
