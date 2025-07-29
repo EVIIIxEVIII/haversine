@@ -1,5 +1,6 @@
 #include "timer.cpp"
 #include <stdio.h>
+#include <limits.h>
 
 typedef double f64;
 
@@ -16,6 +17,16 @@ struct Tester {
     u64 totalCount;
 };
 
+
+void reset(Tester& tester) {
+    tester.tryForTime          = 3;
+    tester.cpuFreq             = tester.cpuFreq;
+    tester.minTime             = INT_MAX;
+    tester.maxTime             = 0;
+    tester.timeSinceLastUpdate = 0;
+    tester.totalTime           = 0;
+    tester.totalCount          = 0;
+}
 
 void addTimeToTester(Tester& tester, u64 elapsed) {
     if(tester.minTime > elapsed) {

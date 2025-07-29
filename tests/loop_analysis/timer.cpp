@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <sys/time.h>
+#include <x86intrin.h>
 
 typedef uint64_t u64;
 typedef uint32_t u32;
@@ -14,6 +15,17 @@ u64 readOSTimer() {
 
 inline u64 readCPUTimer() {
 	return __builtin_ia32_rdtsc();
+}
+
+static inline uint64_t tsc_start() {
+    _mm_lfence();
+    return __rdtsc();
+}
+static inline uint64_t tsc_stop() {
+    unsigned aux;
+    uint64_t t = __rdtscp(&aux);
+    _mm_lfence();
+    return t;
 }
 
 u64 estimateCPUFreq(u64 ms) {
