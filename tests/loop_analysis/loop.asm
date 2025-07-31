@@ -20,8 +20,8 @@ MOVAllBytesASM:
 NOPAllBytesASM:
     xor rax, rax
 .loop:
-    db 0x0f, 0x1f, 0x00
-    inc rax
+    nop
+    add rax, 1
     cmp rax, rdi
     jb .loop
     ret
