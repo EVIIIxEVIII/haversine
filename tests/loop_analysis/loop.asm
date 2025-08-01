@@ -1,6 +1,7 @@
 global MOVAllBytesASM
 global NOPAllBytesASM
 global CMPAllBytesASM
+global CMPAllBytesASMMisaligned
 global DECAllBytesASM
 
 section .text
@@ -17,7 +18,8 @@ MOVAllBytesASM:
     jb .loop
     ret
 
-NOPAllBytesASM:
+
+jOPAllBytesASM:
     xor rax, rax
 .loop:
     nop
@@ -34,8 +36,22 @@ CMPAllBytesASM:
     jb .loop
     ret
 
+CMPAllBytesASMMisaligned:
+    xor rax, rax
+    align 64
+
+    %rep 62
+    nop
+    %endrep
+.loop:
+    inc rax
+    cmp rax, rdi
+    jb .loop
+    ret
+
 DECAllBytesASM:
 .loop:
     dec rdi
     jnz .loop
     ret
+

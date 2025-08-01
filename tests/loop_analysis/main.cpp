@@ -2,7 +2,9 @@
 #include <stdint.h>
 #include <limits.h>
 #include <sched.h>
+#include <type_traits>
 #include <sys/stat.h>
+
 #include "rep_tester.cpp"
 
 typedef uint8_t u8;
@@ -10,6 +12,7 @@ typedef uint8_t u8;
 extern "C" void MOVAllBytesASM(int count, u8* data);
 extern "C" void NOPAllBytesASM(int count);
 extern "C" void CMPAllBytesASM(int count);
+extern "C" void CMPAllBytesASMMisaligned(int count);
 extern "C" void DECAllBytesASM(int count);
 
 struct Buffer {
@@ -22,61 +25,47 @@ static void pin_to_core(int cpu) {
     sched_setaffinity(0, sizeof(set), &set);
 }
 
-void test_c_loop(Buffer& buffer, Tester& tester) {
-    uint64_t start0 = tsc_start();
-    u8* ptr = buffer.data;
-    for (int i = 0; i < buffer.count; i++) {
-        *(ptr+i) = (u8)i;
+void test_c_loop(int count, u8 *data) {
+    u8* ptr = data;
+    for (int i = 0; i < count; i+=3) {
+        u8* nptr = ptr+i;
+        *(nptr) = (u8)i;
+        *(nptr+1) = (u8)i+1;
+        *(nptr+2) = (u8)i+2;
     }
-    uint64_t end0 = tsc_stop();
-    uint64_t elapsed0 = end0 - start0;
-    printf("Elapsed: %lu\n", elapsed0);
-    printf("Data count: %lu \n", buffer.count);
-    addTimeToTester(tester, elapsed0);
-    printResult(tester, "Test C loop", buffer.count);
+}
+
+template <typename T>
+constexpr bool always_false = false;
+
+template <typename Fn>
+void testLoop(Fn fn, Tester& tester, Buffer& buffer, const char* label) {
+    while (shouldTest(tester)) {
+        uint64_t start = readCPUTimer();
+        if constexpr (std::is_invocable_v<Fn, int>) {
+            fn(buffer.count);
+        } else if constexpr (std::is_invocable_v<Fn, int, u8*>) {
+            fn(buffer.count, buffer.data);
+        } else {
+            static_assert(always_false<Fn>, "Unsupported function signature");
+        }
+        uint64_t end = readCPUTimer();
+        uint64_t elapsed = end - start;
+        addTimeToTester(tester, elapsed);
+    }
+
+    printResult(tester, label, buffer.count * sizeof(u8));
     reset(tester);
 }
 
 void testAsmLoops(Buffer& buffer, Tester& tester) {
-    uint64_t start1 = tsc_start();
-    MOVAllBytesASM(buffer.count, buffer.data);
-    uint64_t end1 = tsc_stop();
-    uint64_t elapsed1 = end1 - start1;
-    printf("Elapsed: %lu\n", elapsed1);
-    printf("Data count: %lu \n", buffer.count);
-    addTimeToTester(tester, elapsed1);
-    printResult(tester, "Test MOVAllBytesASM", buffer.count);
-    reset(tester);
+    testLoop(test_c_loop, tester, buffer, "Test C loop");
 
-    test_c_loop(buffer, tester);
-
-    uint64_t start2 = tsc_start();
-    NOPAllBytesASM(buffer.count);
-    uint64_t end2 = tsc_stop();
-    uint64_t elapsed2 = end2 - start2;
-    printf("Elapsed: %lu\n", elapsed2);
-    printf("Data count: %lu \n", buffer.count);
-    addTimeToTester(tester, elapsed2);
-    printResult(tester, "Test NOPAllBytesASM", buffer.count);
-    reset(tester);
-
-    uint64_t start3 = readCPUTimer();
-    CMPAllBytesASM(buffer.count);
-    uint64_t end3 = readCPUTimer();
-    uint64_t elapsed3 = end3 - start3;
-    printf("Elapsed: %lu\n", elapsed3);
-    printf("Data count: %lu \n", buffer.count);
-    addTimeToTester(tester, elapsed3);
-    printResult(tester, "Test CMPAllBytesASM", buffer.count);
-    reset(tester);
-
-    uint64_t start = readCPUTimer();
-    DECAllBytesASM(buffer.count);
-    uint64_t end = readCPUTimer();
-    uint64_t elapsed = end - start;
-    addTimeToTester(tester, elapsed);
-    printResult(tester, "Test DECAllBytesASM", buffer.count);
-    reset(tester);
+    //testLoop(CMPAllBytesASMMisaligned, tester, buffer, "CMPAllBytesASMMisaligned");
+    //testLoop(MOVAllBytesASM, tester, buffer, "MOVAllBytesASM");
+    //testLoop(CMPAllBytesASM, tester, buffer, "CMPAllBytesASM");
+    //testLoop(NOPAllBytesASM, tester, buffer, "NOPAllBytesASM");
+    //testLoop(DECAllBytesASM, tester, buffer, "DECAllBytesASM");
 }
 
 int main() {
@@ -84,7 +73,7 @@ int main() {
     uint64_t cpuFreq = estimateCPUFreq(100);
 
     Tester tester              = Tester{};
-    tester.tryForTime          = 5;
+    tester.tryForTime          = 2;
     tester.cpuFreq             = cpuFreq;
     tester.minTime             = INT_MAX;
     tester.maxTime             = 0;
