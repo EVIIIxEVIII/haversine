@@ -1,0 +1,49 @@
+global DECAllBytesASM
+
+section .text
+
+;first paramter -> rdi
+;second parameter -> rsi
+
+
+read_1:
+    align 64
+    xor rax, rax
+.loop
+    mov rax, [rsi]
+    sub rdi, 1
+    jnle .loop
+    ret
+
+read_2:
+    align 64
+    xor rax, rax
+.loop
+    mov rax, [rsi]
+    mov rax, [rsi]
+    sub rdi, 2
+    jnle .loop
+    ret
+
+read_3:
+    align 64
+    xor rax, rax
+.loop
+    mov rax, [rsi]
+    mov rax, [rsi]
+    mov rax, [rsi]
+    sub rdi, 3
+    jnle .loop
+    ret
+
+read_4:
+    align 64
+    xor rax, rax
+.loop
+    mov rax, [rsi]
+    mov rax, [rsi]
+    mov rax, [rsi]
+    mov rax, [rsi]
+    sub rdi, 4
+    jnle .loop
+    ret

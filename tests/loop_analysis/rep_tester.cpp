@@ -65,7 +65,7 @@ f64 printThroughput(f64 time, u64 size) {
 }
 
 void printResult(const Tester& tester, const char *functionName, u64 processedData) {
-    printf("---- %s ----\n", functionName);
+    printf("\n---- %s ----\n", functionName);
 
     f64 minTimeInSec = (f64) tester.minTime / (f64) tester.cpuFreq;
     f64 avgTimeInSec = ((f64) tester.totalTime / (f64) tester.totalCount) / (f64) tester.cpuFreq;

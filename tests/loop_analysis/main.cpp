@@ -15,6 +15,19 @@ extern "C" void CMPAllBytesASM(int count);
 extern "C" void CMPAllBytesASMMisaligned(int count);
 extern "C" void DECAllBytesASM(int count);
 
+extern "C" void read_1(int count, u8* data);
+extern "C" void read_2(int count, u8* data);
+extern "C" void read_3(int count, u8* data);
+extern "C" void read_4(int count, u8* data);
+
+extern "C" void write_1(int count, u8* data);
+extern "C" void write_2(int count, u8* data);
+extern "C" void write_3(int count, u8* data);
+
+extern "C" void read_1x2(int count, u8* data);
+extern "C" void read_8x2(int count, u8* data);
+extern "C" void read_1_4x2(int count, u8* data);
+
 struct Buffer {
     size_t count;
     u8 *data;
@@ -59,8 +72,20 @@ void testLoop(Fn fn, Tester& tester, Buffer& buffer, const char* label) {
 }
 
 void testAsmLoops(Buffer& buffer, Tester& tester) {
-    testLoop(test_c_loop, tester, buffer, "Test C loop");
+    testLoop(read_1_4x2, tester, buffer, "read eax and al 2 times");
+    testLoop(read_1x2, tester, buffer, "read 1 byte 2 times");
+    testLoop(read_8x2, tester, buffer, "read 8 bytes 2 times");
 
+    //testLoop(write_1, tester, buffer, "1 write");
+    //testLoop(write_2, tester, buffer, "2 write");
+    //testLoop(write_3, tester, buffer, "3 write");
+
+    //testLoop(read_1, tester, buffer, "1 read");
+    //testLoop(read_2, tester, buffer, "2 read");
+    //testLoop(read_3, tester, buffer, "3 read");
+    //testLoop(read_4, tester, buffer, "4 read");
+
+    //testLoop(test_c_loop, tester, buffer, "Test C loop");
     //testLoop(CMPAllBytesASMMisaligned, tester, buffer, "CMPAllBytesASMMisaligned");
     //testLoop(MOVAllBytesASM, tester, buffer, "MOVAllBytesASM");
     //testLoop(CMPAllBytesASM, tester, buffer, "CMPAllBytesASM");
