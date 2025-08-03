@@ -29,6 +29,11 @@ extern "C" void read_8x2(int count, u8* data);
 extern "C" void read_16x2(int count, u8* data);
 extern "C" void read_32x2(int count, u8* data);
 
+extern "C" void test_L1(int count, u8* data);
+extern "C" void test_L2(int count, u8* data);
+extern "C" void test_L3(int count, u8* data);
+extern "C" void test_ram(int count, u8* data);
+
 struct Buffer {
     size_t count;
     u8 *data;
@@ -73,10 +78,15 @@ void testLoop(Fn fn, Tester& tester, Buffer& buffer, const char* label) {
 }
 
 void testAsmLoops(Buffer& buffer, Tester& tester) {
-    testLoop(read_4x2, tester, buffer,  "4 byte read");
-    testLoop(read_8x2, tester, buffer,  "8 byte read");
-    testLoop(read_16x2, tester, buffer, "16 byte read");
-    testLoop(read_32x2, tester, buffer, "32 byte read");
+    testLoop(test_L1, tester, buffer,  "L1 cache speed");
+    testLoop(test_L2, tester, buffer,  "L2 cache speed");
+    testLoop(test_L3, tester, buffer,  "L3 cache speed");
+    testLoop(test_ram, tester, buffer,  "RAM cache speed");
+
+    //testLoop(read_4x2, tester, buffer,  "4 byte read");
+    //testLoop(read_8x2, tester, buffer,  "8 byte read");
+    //testLoop(read_16x2, tester, buffer, "16 byte read");
+    //testLoop(read_32x2, tester, buffer, "32 byte read");
 
     //testLoop(write_1, tester, buffer, "1 write");
     //testLoop(write_2, tester, buffer, "2 write");
@@ -96,7 +106,7 @@ void testAsmLoops(Buffer& buffer, Tester& tester) {
 }
 
 int main() {
-    pin_to_core(0);
+    pin_to_core(1);
     uint64_t cpuFreq = estimateCPUFreq(100);
 
     Tester tester              = Tester{};
@@ -110,7 +120,7 @@ int main() {
 
     printf("rdtsc freq: %lu", tester.cpuFreq);
     Buffer buffer;
-    buffer.count = 998794351;
+    buffer.count = 1024 * 1024 * 1024;
     buffer.data = (u8*)malloc(buffer.count);
     buffer.data[0] = 0;
     for (size_t i = 0; i < buffer.count; i += 4096) {

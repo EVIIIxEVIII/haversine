@@ -19,7 +19,7 @@ read_4x2:
 read_8x2:
     align 64
     xor rax, rax
-.loop:
+    .loop:
     mov r8, [rsi]
     mov r8, [rsi + 8]
     add rax, 16
