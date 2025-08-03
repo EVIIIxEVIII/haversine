@@ -7,10 +7,6 @@ global write_1
 global write_2
 global write_3
 
-global read_1x2
-global read_8x2
-global read_1_4x2
-
 section .text
 
 ;first paramter -> rdi

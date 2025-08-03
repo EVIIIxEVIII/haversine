@@ -24,9 +24,10 @@ extern "C" void write_1(int count, u8* data);
 extern "C" void write_2(int count, u8* data);
 extern "C" void write_3(int count, u8* data);
 
-extern "C" void read_1x2(int count, u8* data);
+extern "C" void read_4x2(int count, u8* data);
 extern "C" void read_8x2(int count, u8* data);
-extern "C" void read_1_4x2(int count, u8* data);
+extern "C" void read_16x2(int count, u8* data);
+extern "C" void read_32x2(int count, u8* data);
 
 struct Buffer {
     size_t count;
@@ -72,9 +73,10 @@ void testLoop(Fn fn, Tester& tester, Buffer& buffer, const char* label) {
 }
 
 void testAsmLoops(Buffer& buffer, Tester& tester) {
-    testLoop(read_1_4x2, tester, buffer, "read eax and al 2 times");
-    testLoop(read_1x2, tester, buffer, "read 1 byte 2 times");
-    testLoop(read_8x2, tester, buffer, "read 8 bytes 2 times");
+    testLoop(read_4x2, tester, buffer,  "4 byte read");
+    testLoop(read_8x2, tester, buffer,  "8 byte read");
+    testLoop(read_16x2, tester, buffer, "16 byte read");
+    testLoop(read_32x2, tester, buffer, "32 byte read");
 
     //testLoop(write_1, tester, buffer, "1 write");
     //testLoop(write_2, tester, buffer, "2 write");
