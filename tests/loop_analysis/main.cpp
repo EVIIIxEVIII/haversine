@@ -123,8 +123,8 @@ int main() {
     buffer.count = 1024 * 1024 * 1024;
     buffer.data = (u8*)malloc(buffer.count);
     buffer.data[0] = 0;
-    for (size_t i = 0; i < buffer.count; i += 4096) {
-        buffer.data[i] = 0;
+    for (size_t i = 0; i < buffer.count; i++) {
+        buffer.data[i] = (u8)i;
     }
 
     testAsmLoops(buffer, tester);

@@ -19,7 +19,7 @@ MOVAllBytesASM:
     ret
 
 
-jOPAllBytesASM:
+NOPAllBytesASM:
     xor rax, rax
 .loop:
     nop
