@@ -81,7 +81,18 @@ void testLoop(Fn fn, Tester& tester, Buffer& buffer, const char* label) {
     reset(tester);
 }
 
-void testAsmLoops(Buffer& buffer, Tester& tester) {
+void getThroughputGraph(Buffer& buffer, Tester& tester) {
+    int fd = open("log.csv", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd < 0) {
+        perror("open");
+        return;
+    }
+
+    if (dup2(fd, 1) < 0) {
+        perror("dup2");
+        return;
+    }
+
     int ram = 268435456;
 
     for (int dataSize = 1000; dataSize < ram; dataSize+=10240) {
@@ -94,12 +105,15 @@ void testAsmLoops(Buffer& buffer, Tester& tester) {
     }
 
     reset(tester);
+    close(fd);
+}
 
 
-    //testLoop(test_L1, tester, buffer,  "L1 cache speed");
-    //testLoop(test_L2, tester, buffer,  "L2 cache speed");
-    //testLoop(test_L3, tester, buffer,  "L3 cache speed");
-    //testLoop(test_ram, tester, buffer,  "RAM cache speed");
+void testAsmLoops(Buffer& buffer, Tester& tester) {
+    testLoop(test_L1, tester, buffer,  "L1 cache speed");
+    testLoop(test_L2, tester, buffer,  "L2 cache speed");
+    testLoop(test_L3, tester, buffer,  "L3 cache speed");
+    testLoop(test_ram, tester, buffer,  "RAM cache speed");
 
     //testLoop(read_4x2, tester, buffer,  "4 byte read");
     //testLoop(read_8x2, tester, buffer,  "8 byte read");
@@ -126,17 +140,6 @@ void testAsmLoops(Buffer& buffer, Tester& tester) {
 int main() {
     pin_to_core(1);
 
-    int fd = open("log.csv", O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    if (fd < 0) {
-        perror("open");
-        return 1;
-    }
-
-    if (dup2(fd, 1) < 0) {
-        perror("dup2");
-        return 1;
-    }
-
     uint64_t cpuFreq = estimateCPUFreq(100);
 
     Tester tester              = Tester{};
@@ -151,14 +154,19 @@ int main() {
     Buffer buffer;
     buffer.count = 1024 * 1024 * 1024;
     buffer.data = (u8*)malloc(buffer.count);
-    buffer.data[0] = 0;
     for (size_t i = 0; i < buffer.count; i++) {
         buffer.data[i] = (u8)i;
     }
-
+    printf("\n---- Unaligned ---\n");
     testAsmLoops(buffer, tester);
+    free(buffer.data);
 
-    close(fd);
+    printf("\n---- Aligned ---\n");
+    buffer.data = (u8*)aligned_alloc(64, buffer.count);
+    for (size_t i = 0; i < buffer.count; i++) {
+        buffer.data[i] = (u8)i;
+    }
+    testAsmLoops(buffer, tester);
 
     return 0;
 }
