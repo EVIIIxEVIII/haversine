@@ -2,11 +2,72 @@ global test_L1
 global test_L2
 global test_L3
 global test_ram
+global test_cache
 
 section .text
 
 ;first paramter -> rdi
 ;second parameter -> rsi
+;third parameter -> rdx
+
+test_cache:
+    ; rdi - buffer count
+    ; rsi - data ptr
+    ; rdx - chunk size
+
+    align 64
+    push r12
+    push r13
+    push r14
+    push r15
+    xor r12, r12
+    xor r13, r13
+    xor r14, r14
+    xor r15, r15; data pointer
+
+    mov rax, rdx
+    add rax, 128
+    mov r12, rdx
+    xor rdx, rdx
+    mov r13, 256
+    div r13
+    mov r14, rax; inner loop cycles
+    mul r13
+    mov r13, rax
+
+    mov rax, rdi
+    div r13
+    mov r12, rax; outer loop cycles
+    mul r13
+
+    xor r13, r13; inner loop counter
+
+.outer:
+    mov r13, r14
+    mov r15, rsi
+    .inner:
+        vmovdqu ymm0, [r15]
+        vmovdqu ymm1, [r15 + 32]
+        vmovdqu ymm2, [r15 + 64]
+        vmovdqu ymm3, [r15 + 96]
+        vmovdqu ymm4, [r15 + 128]
+        vmovdqu ymm5, [r15 + 160]
+        vmovdqu ymm6, [r15 + 192]
+        vmovdqu ymm7, [r15 + 224]
+
+        add r15, 256
+        dec r13
+        jnz .inner
+
+    dec r12
+    jnz .outer
+
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    ret
+
 
 test_L1:
     align 64

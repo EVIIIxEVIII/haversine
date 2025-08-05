@@ -4,10 +4,13 @@
 #include <sched.h>
 #include <type_traits>
 #include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "rep_tester.cpp"
 
 typedef uint8_t u8;
+typedef int64_t i64;
 
 extern "C" void MOVAllBytesASM(int count, u8* data);
 extern "C" void NOPAllBytesASM(int count);
@@ -33,6 +36,7 @@ extern "C" void test_L1(int count, u8* data);
 extern "C" void test_L2(int count, u8* data);
 extern "C" void test_L3(int count, u8* data);
 extern "C" void test_ram(int count, u8* data);
+extern "C" int test_cache(i64 count, u8* data, i64 chunk);
 
 struct Buffer {
     size_t count;
@@ -78,10 +82,24 @@ void testLoop(Fn fn, Tester& tester, Buffer& buffer, const char* label) {
 }
 
 void testAsmLoops(Buffer& buffer, Tester& tester) {
-    testLoop(test_L1, tester, buffer,  "L1 cache speed");
-    testLoop(test_L2, tester, buffer,  "L2 cache speed");
-    testLoop(test_L3, tester, buffer,  "L3 cache speed");
-    testLoop(test_ram, tester, buffer,  "RAM cache speed");
+    int ram = 268435456;
+
+    for (int dataSize = 1000; dataSize < ram; dataSize+=10240) {
+        uint64_t start = readCPUTimer();
+        int dataProcessed = test_cache(buffer.count, buffer.data, dataSize);
+        uint64_t end = readCPUTimer();
+        uint64_t elapsed = end - start;
+        f64 throughput = getThroughput((f64)elapsed / tester.cpuFreq, dataProcessed);
+        printf("%d, %f\n", dataSize, throughput);
+    }
+
+    reset(tester);
+
+
+    //testLoop(test_L1, tester, buffer,  "L1 cache speed");
+    //testLoop(test_L2, tester, buffer,  "L2 cache speed");
+    //testLoop(test_L3, tester, buffer,  "L3 cache speed");
+    //testLoop(test_ram, tester, buffer,  "RAM cache speed");
 
     //testLoop(read_4x2, tester, buffer,  "4 byte read");
     //testLoop(read_8x2, tester, buffer,  "8 byte read");
@@ -107,6 +125,18 @@ void testAsmLoops(Buffer& buffer, Tester& tester) {
 
 int main() {
     pin_to_core(1);
+
+    int fd = open("log.csv", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd < 0) {
+        perror("open");
+        return 1;
+    }
+
+    if (dup2(fd, 1) < 0) {
+        perror("dup2");
+        return 1;
+    }
+
     uint64_t cpuFreq = estimateCPUFreq(100);
 
     Tester tester              = Tester{};
@@ -118,7 +148,6 @@ int main() {
     tester.totalTime           = 0;
     tester.totalCount          = 0;
 
-    printf("rdtsc freq: %lu", tester.cpuFreq);
     Buffer buffer;
     buffer.count = 1024 * 1024 * 1024;
     buffer.data = (u8*)malloc(buffer.count);
@@ -128,6 +157,8 @@ int main() {
     }
 
     testAsmLoops(buffer, tester);
+
+    close(fd);
 
     return 0;
 }

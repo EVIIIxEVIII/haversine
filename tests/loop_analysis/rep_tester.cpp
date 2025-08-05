@@ -52,6 +52,16 @@ bool shouldTest(Tester& tester) {
     return true;
 }
 
+f64 getThroughput(f64 time, u64 size) {
+    f64 megabyte = 1024. * 1024.;
+    f64 gigabyte = megabyte * 1024.;
+
+    f64 bytesPerSecond = (f64)size / time;
+    f64 megabytes = (f64)size / (f64) megabyte;
+    f64 gigabytesPerSecond = bytesPerSecond / gigabyte;
+    return gigabytesPerSecond;
+}
+
 f64 printThroughput(f64 time, u64 size) {
     f64 megabyte = 1024. * 1024.;
     f64 gigabyte = megabyte * 1024.;
