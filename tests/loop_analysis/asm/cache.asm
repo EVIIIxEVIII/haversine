@@ -3,12 +3,47 @@ global test_L2
 global test_L3
 global test_ram
 global test_cache
+global overflow_L1
 
 section .text
 
 ;first paramter -> rdi
 ;second parameter -> rsi
 ;third parameter -> rdx
+
+overflow_L1:
+    align 64
+    ; rdi - buffer count
+    ; rsi - data ptr
+    ; rdx - distance between addresses in bytes
+
+    push r12
+    push r13
+    push r14
+    xor r12, r12
+    xor r13, r13
+    xor r14, r14
+
+    mov r12, 1000
+
+.outer:
+    mov r13, rsi
+    mov r14, 256
+    .inner:
+        vmovdqu ymm0, [r13]
+        vmovdqu ymm0, [r13 + 32]
+        add r13, rdx
+        dec r14
+        jnz .inner
+
+    dec r12
+    jnz .outer
+
+    pop r14
+    pop r13
+    pop r12
+    ret
+
 
 test_cache:
     ; rdi - buffer count

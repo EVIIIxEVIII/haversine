@@ -37,6 +37,7 @@ extern "C" void test_L2(int count, u8* data);
 extern "C" void test_L3(int count, u8* data);
 extern "C" void test_ram(int count, u8* data);
 extern "C" int test_cache(i64 count, u8* data, i64 chunk);
+extern "C" int overflow_L1(i64 count, u8* data, i64 offset);
 
 struct Buffer {
     size_t count;
@@ -108,12 +109,57 @@ void getThroughputGraph(Buffer& buffer, Tester& tester) {
     close(fd);
 }
 
+void cacheOffsetsGraph(Buffer& buffer, Tester& tester) {
+    int orig_stdout = dup(1);
+    int fd = open("cache_offsets.csv", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd < 0) {
+        perror("open");
+        return;
+    }
+
+    if (dup2(fd, 1) < 0) {
+        perror("dup2");
+        return;
+    }
+
+    for (int cacheLines = 1; cacheLines < 126; ++cacheLines) {
+        uint64_t elapsedTotal = 0;
+        uint64_t ranTime = 1000;
+
+        for (int j = 0; j < ranTime; j++) {
+            uint64_t start = readCPUTimer();
+            overflow_L1(buffer.count, buffer.data, cacheLines*64);
+            uint64_t end = readCPUTimer();
+            elapsedTotal += end - start;
+        }
+
+        printf("%d, %lu\n", cacheLines*64, elapsedTotal / ranTime);
+    }
+
+    close(fd);
+    dup2(orig_stdout, 1);
+    close(orig_stdout);
+
+    //while (shouldTest(tester)) {
+    //    uint64_t start = readCPUTimer();
+    //    int dataProcessed = overflow_L1(buffer.count, buffer.data, 71*64);
+    //    uint64_t end = readCPUTimer();
+    //    uint64_t elapsed = end - start;
+    //    addTimeToTester(tester, elapsed);
+    //}
+
+    //printResult(tester, "Cache overflow", buffer.count * sizeof(u8));
+    //reset(tester);
+}
+
 
 void testAsmLoops(Buffer& buffer, Tester& tester) {
-    testLoop(test_L1, tester, buffer,  "L1 cache speed");
-    testLoop(test_L2, tester, buffer,  "L2 cache speed");
-    testLoop(test_L3, tester, buffer,  "L3 cache speed");
-    testLoop(test_ram, tester, buffer,  "RAM cache speed");
+    cacheOffsetsGraph(buffer, tester);
+
+    //testLoop(test_L1, tester, buffer,  "L1 cache speed");
+    //testLoop(test_L2, tester, buffer,  "L2 cache speed");
+    //testLoop(test_L3, tester, buffer,  "L3 cache speed");
+    //testLoop(test_ram, tester, buffer,  "RAM cache speed");
 
     //testLoop(read_4x2, tester, buffer,  "4 byte read");
     //testLoop(read_8x2, tester, buffer,  "8 byte read");
@@ -153,13 +199,14 @@ int main() {
 
     Buffer buffer;
     buffer.count = 1024 * 1024 * 1024;
-    buffer.data = (u8*)malloc(buffer.count);
-    for (size_t i = 0; i < buffer.count; i++) {
-        buffer.data[i] = (u8)i;
-    }
-    printf("\n---- Unaligned ---\n");
-    testAsmLoops(buffer, tester);
-    free(buffer.data);
+
+    //printf("\n---- Unaligned ---\n");
+    //buffer.data = (u8*)malloc(buffer.count);
+    //for (size_t i = 0; i < buffer.count; i++) {
+    //    buffer.data[i] = (u8)i;
+    //}
+    //testAsmLoops(buffer, tester);
+    //free(buffer.data);
 
     printf("\n---- Aligned ---\n");
     buffer.data = (u8*)aligned_alloc(64, buffer.count);
