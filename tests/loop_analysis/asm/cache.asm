@@ -5,11 +5,89 @@ global test_ram
 global test_cache
 global overflow_L1
 
+global non_temporal_test
+global temporal_test
+
 section .text
 
 ;first paramter -> rdi
 ;second parameter -> rsi
 ;third parameter -> rdx
+
+non_temporal_test:
+;rdi - src buffer
+;rsi - dest buffer
+;rdx - copy times
+    align 64
+    push r12
+
+    mov r12, rsi
+    vmovdqu ymm0, [rdi]
+    vmovdqu ymm1, [rdi + 32]
+    vmovdqu ymm2, [rdi + 64]
+    vmovdqu ymm3, [rdi + 96]
+    vmovdqu ymm4, [rdi + 128]
+    vmovdqu ymm5, [rdi + 160]
+    vmovdqu ymm6, [rdi + 192]
+    vmovdqu ymm7, [rdi + 224]
+    vmovdqu ymm8, [rdi + 256]
+
+    .inner:
+        vmovntdq [r12], ymm0
+        vmovntdq [r12 + 32], ymm1
+        vmovntdq [r12 + 64], ymm2
+        vmovntdq [r12 + 96], ymm3
+        vmovntdq [r12 + 128], ymm4
+        vmovntdq [r12 + 160], ymm5
+        vmovntdq [r12 + 192], ymm6
+        vmovntdq [r12 + 224], ymm7
+        vmovntdq [r12 + 256], ymm8
+
+        add r12, 288
+        dec rdx
+        jnz .inner
+
+
+    pop r12
+    ret
+
+temporal_test:
+;rdi - src buffer
+;rsi - dest buffer
+;rdx - copy times
+    align 64
+    push r12
+
+    mov r12, rsi
+    vmovdqu ymm0, [rdi]
+    vmovdqu ymm1, [rdi + 32]
+    vmovdqu ymm2, [rdi + 64]
+    vmovdqu ymm3, [rdi + 96]
+    vmovdqu ymm4, [rdi + 128]
+    vmovdqu ymm5, [rdi + 160]
+    vmovdqu ymm6, [rdi + 192]
+    vmovdqu ymm7, [rdi + 224]
+    vmovdqu ymm8, [rdi + 256]
+
+    .inner:
+        vmovdqu [r12], ymm0
+        vmovdqu [r12 + 32], ymm1
+        vmovdqu [r12 + 64], ymm2
+        vmovdqu [r12 + 96], ymm3
+        vmovdqu [r12 + 128], ymm4
+        vmovdqu [r12 + 160], ymm5
+        vmovdqu [r12 + 192], ymm6
+        vmovdqu [r12 + 224], ymm7
+        vmovdqu [r12 + 256], ymm8
+
+        add r12, 288
+        dec rdx
+        jnz .inner
+
+
+    pop r12
+    ret
+
 
 overflow_L1:
     align 64

@@ -39,6 +39,10 @@ extern "C" void test_ram(int count, u8* data);
 extern "C" int test_cache(i64 count, u8* data, i64 chunk);
 extern "C" int overflow_L1(i64 count, u8* data, i64 offset);
 
+extern "C" int non_temporal_test(u8* src, u8* des, u32 times);
+extern "C" int temporal_test(u8* src, u8* des, u32 times);
+
+
 struct Buffer {
     size_t count;
     u8 *data;
@@ -139,22 +143,40 @@ void cacheOffsetsGraph(Buffer& buffer, Tester& tester) {
     close(fd);
     dup2(orig_stdout, 1);
     close(orig_stdout);
-
-    //while (shouldTest(tester)) {
-    //    uint64_t start = readCPUTimer();
-    //    int dataProcessed = overflow_L1(buffer.count, buffer.data, 71*64);
-    //    uint64_t end = readCPUTimer();
-    //    uint64_t elapsed = end - start;
-    //    addTimeToTester(tester, elapsed);
-    //}
-
-    //printResult(tester, "Cache overflow", buffer.count * sizeof(u8));
-    //reset(tester);
 }
 
 
+void nonTempStoresTest(Buffer& buffer, Tester& tester) {
+    printf("\n-- Without non-temp store --\n");
+
+    while (shouldTest(tester)) {
+        uint64_t start = readCPUTimer();
+        temporal_test(buffer.data, buffer.data+256, 81920);
+        uint64_t end = readCPUTimer();
+        uint64_t elapsed = end - start;
+        addTimeToTester(tester, elapsed);
+    }
+
+    printResult(tester, "Without non-temp store", 81920 * 288);
+    reset(tester);
+
+    printf("\n-- With non-temp store --\n");
+
+    while (shouldTest(tester)) {
+        uint64_t start = readCPUTimer();
+        non_temporal_test(buffer.data, buffer.data+256, 81920);
+        uint64_t end = readCPUTimer();
+        uint64_t elapsed = end - start;
+        addTimeToTester(tester, elapsed);
+    }
+
+    printResult(tester, "With non-temp store", 81920 * 288);
+    reset(tester);
+}
+
 void testAsmLoops(Buffer& buffer, Tester& tester) {
-    cacheOffsetsGraph(buffer, tester);
+    nonTempStoresTest(buffer, tester);
+    //cacheOffsetsGraph(buffer, tester);
 
     //testLoop(test_L1, tester, buffer,  "L1 cache speed");
     //testLoop(test_L2, tester, buffer,  "L2 cache speed");
