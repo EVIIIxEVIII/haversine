@@ -8,11 +8,82 @@ global overflow_L1
 global non_temporal_test
 global temporal_test
 
+global prefetching_test
+global prefetching_test_without
+
 section .text
 
 ;first paramter -> rdi
 ;second parameter -> rsi
 ;third parameter -> rdx
+
+prefetching_test:
+;rdi - buffer
+;rsi - buffer size
+    align 64
+    push r12
+    xor r12, r12
+
+    .inner:
+        vmovdqu ymm0, [rdi]
+        vmovdqu ymm1, [rdi + 32]
+        vmovdqu ymm2, [rdi + 64]
+        vmovdqu ymm3, [rdi + 96]
+        add r12, 128
+
+        test rdi, 1
+        jnz .odd
+
+        .even:
+            add rdi, 640
+            sub rsi, 640
+            cmp rsi, 0
+            jg .inner
+
+        .odd:
+            add rdi, 384
+            sub rsi, 384
+            cmp rsi, 0
+            jg .inner
+
+    mov rax, r12
+
+    pop r12
+    ret
+
+prefetching_test_without:
+;rdi - buffer
+;rsi - buffer size
+    align 64
+    push r12
+    xor r12, r12
+
+    .inner:
+        vmovdqu ymm0, [rdi]
+        vmovdqu ymm1, [rdi + 32]
+        vmovdqu ymm2, [rdi + 64]
+        vmovdqu ymm3, [rdi + 96]
+        add r12, 128
+
+        test rdi, 1
+        jnz .odd
+
+        .even:
+            add rdi, 640
+            sub rsi, 640
+            cmp rsi, 0
+            jg .inner
+
+        .odd:
+            add rdi, 384
+            sub rsi, 384
+            cmp rsi, 0
+            jg .inner
+
+    mov rax, r12
+
+    pop r12
+    ret
 
 non_temporal_test:
 ;rdi - src buffer

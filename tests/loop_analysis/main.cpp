@@ -42,6 +42,8 @@ extern "C" int overflow_L1(i64 count, u8* data, i64 offset);
 extern "C" int non_temporal_test(u8* src, u8* des, u32 times);
 extern "C" int temporal_test(u8* src, u8* des, u32 times);
 
+extern "C" int prefetching_test(u8* src, i64 count);
+
 
 struct Buffer {
     size_t count;
@@ -151,31 +153,48 @@ void nonTempStoresTest(Buffer& buffer, Tester& tester) {
 
     while (shouldTest(tester)) {
         uint64_t start = readCPUTimer();
-        temporal_test(buffer.data, buffer.data+256, 81920);
+        temporal_test(buffer.data, buffer.data+256, 819200);
         uint64_t end = readCPUTimer();
         uint64_t elapsed = end - start;
         addTimeToTester(tester, elapsed);
     }
 
-    printResult(tester, "Without non-temp store", 81920 * 288);
+    printResult(tester, "Without non-temp store", 819200 * 288);
     reset(tester);
 
     printf("\n-- With non-temp store --\n");
 
     while (shouldTest(tester)) {
         uint64_t start = readCPUTimer();
-        non_temporal_test(buffer.data, buffer.data+256, 81920);
+        non_temporal_test(buffer.data, buffer.data+256, 819200);
         uint64_t end = readCPUTimer();
         uint64_t elapsed = end - start;
         addTimeToTester(tester, elapsed);
     }
 
-    printResult(tester, "With non-temp store", 81920 * 288);
+    printResult(tester, "With non-temp store", 819200 * 288);
     reset(tester);
 }
 
+void testPrefetching(Buffer& buffer, Tester& tester) {
+    u64 bytesRead = 0;
+    while (shouldTest(tester)) {
+        u64 start = readCPUTimer();
+        bytesRead = prefetching_test(buffer.data, buffer.count);
+        u64 end = readCPUTimer();
+        u64 elapsed = end - start;
+        addTimeToTester(tester, elapsed);
+    }
+
+    printResult(tester, "Test prefetching", bytesRead);
+    reset(tester);
+}
+
+
 void testAsmLoops(Buffer& buffer, Tester& tester) {
-    nonTempStoresTest(buffer, tester);
+    testPrefetching(buffer, tester);
+
+    //nonTempStoresTest(buffer, tester);
     //cacheOffsetsGraph(buffer, tester);
 
     //testLoop(test_L1, tester, buffer,  "L1 cache speed");
