@@ -7,11 +7,10 @@
 #include <iomanip>
 #include <array>
 
+#include "types.cpp"
+
 #define EARTH_RADIUS 6378
 #define CLUSTERS 16
-
-typedef double f64;
-typedef int32_t i32;
 
 static f64 square(f64 x) {
     return x*x;

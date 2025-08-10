@@ -1,8 +1,6 @@
 #include <stdint.h>
 #include <sys/time.h>
-
-typedef uint64_t u64;
-typedef uint32_t u32;
+#include "types.cpp"
 
 u64 readOSTimer() {
     struct timeval value;

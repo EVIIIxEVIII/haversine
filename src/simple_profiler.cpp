@@ -7,7 +7,6 @@
 #endif
 
 #define ArrayCount(Array) (sizeof(Array)/sizeof((Array)[0]))
-typedef double f64;
 
 struct Anchor {
     const char* label;

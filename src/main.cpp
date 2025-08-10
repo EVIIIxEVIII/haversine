@@ -49,15 +49,15 @@ void validate(f64 computed, f64 answer) {
     }
 }
 
-f64 computeHaversineSum(std::vector<Pair>& pairs) {
-    TimeThroughput("computeHaversineSum", pairs.size()*sizeof(Pair));
+f64 computeHaversineSum(Pairs pairs) {
+    TimeThroughput("computeHaversineSum", pairs.size*sizeof(Pair));
     f64 haversineSum = 0;
-    for (int i = 0; i < pairs.size(); ++i) {
+    for (u64 i = 0; i < pairs.size; ++i) {
         f64 val = haversine(
-            pairs.at(i).X0,
-            pairs.at(i).Y0,
-            pairs.at(i).X1,
-            pairs.at(i).Y1,
+            pairs.data[i].X0,
+            pairs.data[i].Y0,
+            pairs.data[i].X1,
+            pairs.data[i].Y1,
             EARTH_RADIUS
         );
 
@@ -79,13 +79,24 @@ int main(int argc, char** argv) {
         return 0;
     }
 
+    u64 GB_1_5 = 1.5 * 1024 * 1024 * 1024;
+    Arena arena(GB_1_5);
+    if (!arena.data) {
+        printf("Failed to allocate the target arena!\n");
+        return 1;
+    }
+
     startProfiling();
     const char* jsonFile = argv[1];
     const char* answersFile  = argv[2];
 
-    std::vector<Pair> pairs = parsePoints(jsonFile);
+    Pairs pairs = parsePoints2(jsonFile, arena);
+    if (!pairs.data) {
+        printf("Failed to parse any pairs!\n");
+        return 1;
+    }
 
-    printf("Input size: %lu \n", pairs.size());
+    printf("Input size: %lu \n", pairs.size);
 
     Answers answers = readAnswers(answersFile);
     f64 haversineSum = computeHaversineSum(pairs);
