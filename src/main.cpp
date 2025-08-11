@@ -79,7 +79,7 @@ int main(int argc, char** argv) {
         return 0;
     }
 
-    u64 GB_1_5 = 1.5 * 1024 * 1024 * 1024;
+    u64 GB_1_5 = static_cast<u64>(1.5 * 1024 * 1024 * 1024);
     Arena arena(GB_1_5);
     if (!arena.data) {
         printf("Failed to allocate the target arena!\n");
@@ -90,7 +90,7 @@ int main(int argc, char** argv) {
     const char* jsonFile = argv[1];
     const char* answersFile  = argv[2];
 
-    Pairs pairs = parsePoints2(jsonFile, arena);
+    Pairs pairs = parsePoints(jsonFile, arena);
     if (!pairs.data) {
         printf("Failed to parse any pairs!\n");
         return 1;

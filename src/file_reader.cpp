@@ -1,7 +1,6 @@
 #include <fstream>
 #include <vector>
 #include <iostream>
-#include <sstream>
 #include <cstring>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -35,7 +34,7 @@ std::vector<char> readFileAsBin(std::string path) {
     struct stat Stat;
     stat(path.data(), &Stat);
 
-    TimeThroughput("readFileAsBin", Stat.st_size);
+    TimeThroughput("readFileAsBin", static_cast<u64>(Stat.st_size));
     std::ifstream file(path, std::ios::binary | std::ios::ate);
 
     if (!file.is_open()) {
@@ -46,7 +45,7 @@ std::vector<char> readFileAsBin(std::string path) {
     std::streamsize fileSize = file.tellg();
     file.seekg(0, std::ios::beg);
 
-    std::vector<char> buffer(fileSize);
+    std::vector<char> buffer(static_cast<size_t>(fileSize));
 
     if (!file.read(buffer.data(), fileSize)) {
         std::cout << "Failed to read file into memory! \n";
@@ -79,29 +78,10 @@ Answers readAnswers(std::string path) {
     };
 }
 
-std::string readFileAsString(const std::string& path) {
+String readFileAsString(const std::string& path, Arena& arena) {
     struct stat Stat;
     stat(path.data(), &Stat);
-
-    TimeThroughput("readFileAsString", Stat.st_size);
-    std::ifstream jsonFile(path);
-
-    if (!jsonFile.is_open()) {
-        std::cout << "Failed to open json file! \n";
-        return {};
-    }
-
-    std::stringstream buffer;
-    buffer << jsonFile.rdbuf();
-
-    std::string contents = buffer.str();
-    return contents;
-}
-
-String readFileAsString2(const std::string& path, Arena& arena) {
-    struct stat Stat;
-    stat(path.data(), &Stat);
-    TimeThroughput("readFileAsString2", Stat.st_size);
+    TimeThroughput("readFileAsString2", static_cast<u64>(Stat.st_size));
 
     int fd = open(path.data(), O_RDONLY);
 
@@ -111,10 +91,10 @@ String readFileAsString2(const std::string& path, Arena& arena) {
     }
 
     String content;
-    content.size = Stat.st_size;
-    content.data = (char*)arena.alloc(Stat.st_size);
+    content.size = static_cast<u64>(Stat.st_size);
+    content.data = static_cast<char*>(arena.alloc(static_cast<u64>(Stat.st_size)));
 
-    size_t bytesRead = read(fd, content.data, Stat.st_size);
+    ssize_t bytesRead = read(fd, content.data, static_cast<size_t>(Stat.st_size));
 
     if (bytesRead == -1) {
         perror("Error reading the file!");
@@ -125,81 +105,13 @@ String readFileAsString2(const std::string& path, Arena& arena) {
     return content;
 }
 
-//std::vector<Pair> parsePoints(const std::string& path, Arena& arena) {
-//    struct stat Stat;
-//    stat(path.data(), &Stat);
-//
-//    TimeThroughput("parsePoints", Stat.st_size);
-//    std::vector<Pair> parsedPairs;
-//
-//    std::string field = "";
-//    std::string value = "";
-//
-//    std::string contents = readFileAsString(path);
-//
-//    bool readingField = false;
-//    bool readingValue = false;
-//
-//    int currentPair = -1;
-//    for (int i = 0; i < contents.size(); ++i) {
-//        switch (contents.at(i)) {
-//            case '{':
-//                parsedPairs.push_back({0, 0, 0, 0});
-//                currentPair++;
-//                continue;
-//            case ':':
-//                readingValue = true;
-//                continue;
-//            case ',':
-//            case '}':
-//                readingValue = false;
-//                break;
-//            case '"':
-//                readingField = !readingField;
-//                continue;
-//            case '[':
-//            case ']':
-//                continue;
-//            default:
-//                break;
-//        }
-//
-//        if (std::isspace(contents.at(i))) continue;
-//
-//        if(readingField) {
-//            field.push_back(contents.at(i));
-//        }
-//
-//        if (readingValue) {
-//            value.push_back(contents.at(i));
-//        }
-//
-//        if (!readingField && !readingValue) {
-//            if(field == "x0") {
-//                parsedPairs.at(currentPair).X0 = std::stod(value);
-//            } else if (field == "y0") {
-//                parsedPairs.at(currentPair).Y0 = std::stod(value);
-//            } else if (field == "x1") {
-//                parsedPairs.at(currentPair).X1 = std::stod(value);
-//            } else if (field == "y1") {
-//                parsedPairs.at(currentPair).Y1 = std::stod(value);
-//            }
-//
-//            field.clear();
-//            value.clear();
-//        }
-//    }
-//
-//    return parsedPairs;
-//}
-
-Pairs parsePoints2(const std::string& path, Arena& targetArena) {
+Pairs parsePoints(const std::string& path, Arena& targetArena) {
     struct stat Stat;
     stat(path.data(), &Stat);
 
-    TimeThroughput("parsePoints", Stat.st_size);
+    TimeThroughput("parsePoints", static_cast<u64>(Stat.st_size));
 
-    u64 GB_1_5 = 1.5 * 1024 * 1024 * 1024;
+    u64 GB_1_5 = static_cast<u64>(1.5 * 1024 * 1024 * 1024);
 
     Arena arena(GB_1_5);
     if(!arena.data) {
@@ -207,17 +119,17 @@ Pairs parsePoints2(const std::string& path, Arena& targetArena) {
         return { nullptr, 0 };
     }
 
-    Pair* parsedPairs = (Pair*)targetArena.alloc(sizeof(Pair) * 10001000);
+    Pair* parsedPairs = static_cast<Pair*>(targetArena.alloc(sizeof(Pair) * 10001000));
 
     String field;
-    field.data = (char*)arena.alloc(256*sizeof(char));
+    field.data = static_cast<char*>(arena.alloc(256*sizeof(char)));
     field.size = 0;
 
     String value;
-    value.data = (char*)arena.alloc(256*sizeof(char));
+    value.data = static_cast<char*>(arena.alloc(256*sizeof(char)));
     value.size = 0;
 
-    String contents = readFileAsString2(path, arena);
+    String contents = readFileAsString(path, arena);
     if (!contents.data) {
         return { nullptr, 0 };
     }
@@ -279,5 +191,5 @@ Pairs parsePoints2(const std::string& path, Arena& targetArena) {
         }
     }
 
-    return {parsedPairs, (u64)currentPair+1};
+    return {parsedPairs, static_cast<u64>(currentPair+1)};
 }

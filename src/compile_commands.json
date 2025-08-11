@@ -1,0 +1,39 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-O1",
+      "-DPROFILE=1",
+      "-g",
+      "-fno-omit-frame-pointer",
+      "-fsanitize=address,undefined",
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-Wshadow",
+      "-Wconversion",
+      "-Wsign-conversion",
+      "-Wfloat-conversion",
+      "-Wdouble-promotion",
+      "-Wformat=2",
+      "-Wundef",
+      "-Wcast-align",
+      "-Wnon-virtual-dtor",
+      "-Woverloaded-virtual",
+      "-Wnull-dereference",
+      "-Wold-style-cast",
+      "-Wstringop-overflow=4",
+      "-Warray-bounds=2",
+      "-c",
+      "-I",
+      "/usr/local/cuda/include",
+      "-I",
+      "/usr/local/cuda/include",
+      "-I",
+      ".",
+      "main.cpp"
+    ],
+    "directory": "/home/alderson/Projects/Mine/hyperfast-haversine/src",
+    "file": "/home/alderson/Projects/Mine/hyperfast-haversine/src/main.cpp"
+  }
+]

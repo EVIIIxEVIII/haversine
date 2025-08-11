@@ -13,7 +13,7 @@ struct Arena {
     u64 size;
 
     Arena(u64 allocSize) {
-        u64 trueAllocSize = (allocSize + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+        u64 trueAllocSize = (allocSize + PAGE_SIZE - 1) & ~static_cast<u64>(PAGE_SIZE - 1);
 
         void* memory = mmap(NULL, trueAllocSize, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
         if (memory == MAP_FAILED) {
@@ -24,8 +24,8 @@ struct Arena {
             return;
         }
 
-        volatile char* p = (volatile char*)memory;
-        for (u64 i = 0; i < trueAllocSize; i+=PAGE_SIZE) p[i] = i;
+        volatile char* p = static_cast<volatile char*>(memory);
+        for (u64 i = 0; i < trueAllocSize; i+=PAGE_SIZE) p[i] = static_cast<char>(i);
 
         data = memory;
         current = 0;
@@ -33,16 +33,16 @@ struct Arena {
     }
 
     void* alloc(u64 allocSize) {
-        assert(((uptr)data & 63) == 0);
+        assert((reinterpret_cast<uptr>(data) & 63) == 0);
 
-        u64 aligned = (current + 63) & ~63;
+        u64 aligned = (current + 63) & ~static_cast<u64>(63);
         if (size < aligned + allocSize) {
             printf("Warning: arena ran out of memory!\n");
             return nullptr;
         }
 
         current = aligned;
-        void* ptr = (char*)data + current;
+        void* ptr = static_cast<char*>(data) + current;
         current += allocSize;
 
         return ptr;
