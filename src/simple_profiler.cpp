@@ -3,7 +3,7 @@
 #include "timer.cpp"
 
 #ifndef PROFILE
-#define PROFILE 0
+#define PROFILE 1
 #endif
 
 #define ArrayCount(Array) (sizeof(Array)/sizeof((Array)[0]))

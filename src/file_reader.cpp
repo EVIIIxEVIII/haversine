@@ -12,6 +12,8 @@
 #include "memory_arena.cpp"
 #include "data_structures.cpp"
 
+typedef uint8_t b8;
+
 struct Pair {
     f64 X0, Y0, X1, Y1;
 };
@@ -109,8 +111,6 @@ Pairs parsePoints(const std::string& path, Arena& targetArena) {
     struct stat Stat;
     stat(path.data(), &Stat);
 
-    TimeThroughput("parsePoints", static_cast<u64>(Stat.st_size));
-
     u64 GB_1_5 = static_cast<u64>(1.5 * 1024 * 1024 * 1024);
 
     Arena arena(GB_1_5);
@@ -134,6 +134,8 @@ Pairs parsePoints(const std::string& path, Arena& targetArena) {
         return { nullptr, 0 };
     }
 
+    TimeThroughput("parsePoints", static_cast<u64>(Stat.st_size));
+
     bool readingField = false;
     bool readingValue = false;
 
@@ -146,15 +148,18 @@ Pairs parsePoints(const std::string& path, Arena& targetArena) {
                 continue;
             case ':':
                 readingValue = true;
+                value.data = contents.data + i + 1;
                 continue;
             case ',':
-                readingValue = false;
-                break;
             case '}':
                 readingValue = false;
                 break;
             case '"':
-                readingField = !readingField;
+                readingField ^= 1;
+                if (readingField) {
+                    field.data = contents.data + i + 1;
+                    field.size = 0;
+                }
                 continue;
             case '[':
             case ']':
@@ -165,15 +170,8 @@ Pairs parsePoints(const std::string& path, Arena& targetArena) {
 
         if (std::isspace(contents[i])) continue;
 
-        if(readingField) {
-            field.data[field.size] = contents[i];
-            field.size++;
-        }
-
-        if (readingValue) {
-            value.data[value.size] = contents[i];
-            value.size++;
-        }
+        field.size += readingField;
+        value.size += readingValue;
 
         if (!readingField && !readingValue) {
             if(field == "x0") {
