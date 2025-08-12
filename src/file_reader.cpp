@@ -80,7 +80,6 @@ Answers readAnswers(std::string path) {
     };
 }
 
-
 b8 mapFileToString(i32 fd, size_t fileSize, String& dest, u64 offset, u64 blockSize) {
     if(blockSize == 0) return false;
     u64 pageSize = static_cast<u64>(sysconf(_SC_PAGESIZE));
@@ -140,69 +139,78 @@ Pairs parsePoints(const std::string& path, Arena& targetArena) {
         return { nullptr, 0 };
     }
 
-    b8 mapStatus = mapFileToString(fd, static_cast<size_t>(Stat.st_size), contents, 0, MB_16);
-    if(!mapStatus) {
-        perror("Error mapping the file!");
-        return { nullptr, 0 };
-    }
 
-    if (!contents.data) {
-        return { nullptr, 0 };
-    }
+    u64 totalReadBytes = static_cast<u64>(Stat.st_size);
+    u64 j = 0;
+    u64 blocksToRead = totalReadBytes / MB_16;
 
-    bool readingField = false;
-    bool readingValue = false;
+    while (j < blocksToRead) {
+        b8 mapStatus = mapFileToString(fd, static_cast<size_t>(Stat.st_size), contents, j*MB_16, MB_16);
+        totalReadBytes -= j*MB_16;
 
-    i64 currentPair = -1;
-    for (u64 i = 0; i < contents.size; ++i) {
-        switch (contents[i]) {
-            case '{':
-                currentPair++;
-                parsedPairs[currentPair] = {0, 0, 0, 0};
-                continue;
-            case ':':
-                readingValue = true;
-                value.data = contents.data + i + 1;
-                continue;
-            case ',':
-            case '}':
-                readingValue = false;
-                break;
-            case '"':
-                readingField ^= 1;
-                if (readingField) {
-                    field.data = contents.data + i + 1;
-                    field.size = 0;
-                }
-                continue;
-            case '[':
-            case ']':
-                continue;
-            default:
-                break;
+        if(!mapStatus) {
+            perror("Error mapping the file!");
+            return { nullptr, 0 };
         }
 
-        if (std::isspace(contents[i])) continue;
+        if (!contents.data) {
+            return { nullptr, 0 };
+        }
 
-        field.size += readingField;
-        value.size += readingValue;
+        bool readingField = false;
+        bool readingValue = false;
 
-        if (!readingField && !readingValue) {
-            if(field == "x0") {
-                std::from_chars(value.data, value.data + value.size, parsedPairs[currentPair].X0);
-            } else if (field == "y0") {
-                std::from_chars(value.data, value.data + value.size, parsedPairs[currentPair].Y0);
-            } else if (field == "x1") {
-                std::from_chars(value.data, value.data + value.size, parsedPairs[currentPair].X1);
-            } else if (field == "y1") {
-                std::from_chars(value.data, value.data + value.size, parsedPairs[currentPair].Y1);
+        i64 currentPair = -1;
+        for (u64 i = 0; i < contents.size; ++i) {
+            switch (contents[i]) {
+                case '{':
+                    currentPair++;
+                    parsedPairs[currentPair] = {0, 0, 0, 0};
+                    continue;
+                case ':':
+                    readingValue = true;
+                    value.data = contents.data + i + 1;
+                    continue;
+                case ',':
+                case '}':
+                    readingValue = false;
+                    break;
+                case '"':
+                    readingField ^= 1;
+                    if (readingField) {
+                        field.data = contents.data + i + 1;
+                        field.size = 0;
+                    }
+                    continue;
+                case '[':
+                case ']':
+                    continue;
+                default:
+                    break;
             }
 
-            field.size = 0;
-            value.size = 0;
+            if (std::isspace(contents[i])) continue;
+
+            field.size += readingField;
+            value.size += readingValue;
+
+            if (!readingField && !readingValue) {
+                if(field == "x0") {
+                    std::from_chars(value.data, value.data + value.size, parsedPairs[currentPair].X0);
+                } else if (field == "y0") {
+                    std::from_chars(value.data, value.data + value.size, parsedPairs[currentPair].Y0);
+                } else if (field == "x1") {
+                    std::from_chars(value.data, value.data + value.size, parsedPairs[currentPair].X1);
+                } else if (field == "y1") {
+                    std::from_chars(value.data, value.data + value.size, parsedPairs[currentPair].Y1);
+                }
+
+                field.size = 0;
+                value.size = 0;
+            }
         }
     }
 
     close(fd);
-    return {parsedPairs, static_cast<u64>(currentPair+1)};
+    //return {parsedPairs, static_cast<u64>(currentPair+1)};
 }
