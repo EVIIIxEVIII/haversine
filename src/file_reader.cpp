@@ -80,40 +80,38 @@ Answers readAnswers(std::string path) {
     };
 }
 
-String readFileAsString(const std::string& path, Arena& arena) {
-    struct stat Stat;
-    stat(path.data(), &Stat);
-    TimeThroughput("readFileAsString2", static_cast<u64>(Stat.st_size));
 
-    int fd = open(path.data(), O_RDONLY);
+b8 mapFileToString(i32 fd, size_t fileSize, String& dest, u64 offset, u64 blockSize) {
+    if(blockSize == 0) return false;
+    u64 pageSize = static_cast<u64>(sysconf(_SC_PAGESIZE));
 
-    if(fd == -1) {
-        perror("Error opening the file!");
-        return String { nullptr, 0 };
-    }
+    u64 alignedOffset = static_cast<u64>(offset & ~(pageSize - 1));
+    size_t lead = offset - alignedOffset;
+    if(lead != 0) return false;
 
-    String content;
-    content.size = static_cast<u64>(Stat.st_size);
-    content.data = static_cast<char*>(arena.alloc(static_cast<u64>(Stat.st_size)));
+    if(reinterpret_cast<uintptr_t>(dest.data) % pageSize) return false;
 
-    ssize_t bytesRead = read(fd, content.data, static_cast<size_t>(Stat.st_size));
+    size_t alignedBlockSize = (blockSize + pageSize - 1) & ~(pageSize - 1);
 
-    if (bytesRead == -1) {
-        perror("Error reading the file!");
-        return String { nullptr, 0 };
-    }
+    i32 prot = PROT_READ | PROT_WRITE;
+    i32 flags = MAP_PRIVATE | MAP_FIXED;
 
-    close(fd);
-    return content;
+    void* p = mmap(dest.data, alignedBlockSize, prot, flags, fd, static_cast<off_t>(alignedOffset));
+    if (p == MAP_FAILED) return false;
+
+    dest.size = alignedBlockSize;
+
+    return true;
 }
 
 Pairs parsePoints(const std::string& path, Arena& targetArena) {
     struct stat Stat;
     stat(path.data(), &Stat);
 
-    u64 GB_1_5 = static_cast<u64>(1.5 * 1024 * 1024 * 1024);
+    u64 MB_100 = 100 * 1024 * 1024;
+    u64 MB_16 = 16 * 1024 * 1024;
 
-    Arena arena(GB_1_5);
+    Arena arena(MB_100);
     if(!arena.data) {
         printf("Failed to allocated parsed arena!\n");
         return { nullptr, 0 };
@@ -129,12 +127,28 @@ Pairs parsePoints(const std::string& path, Arena& targetArena) {
     value.data = static_cast<char*>(arena.alloc(256*sizeof(char)));
     value.size = 0;
 
-    String contents = readFileAsString(path, arena);
-    if (!contents.data) {
+    TimeThroughput("parsePoints", static_cast<u64>(Stat.st_size));
+
+    String contents;
+    contents.data = static_cast<char*>(arena.pageAllignedAlloc(MB_16));
+    contents.size = 0;
+
+    int fd = open(path.data(), O_RDONLY);
+
+    if(fd == -1) {
+        perror("Error opening the file!");
         return { nullptr, 0 };
     }
 
-    TimeThroughput("parsePoints", static_cast<u64>(Stat.st_size));
+    b8 mapStatus = mapFileToString(fd, static_cast<size_t>(Stat.st_size), contents, 0, MB_16);
+    if(!mapStatus) {
+        perror("Error mapping the file!");
+        return { nullptr, 0 };
+    }
+
+    if (!contents.data) {
+        return { nullptr, 0 };
+    }
 
     bool readingField = false;
     bool readingValue = false;
@@ -189,5 +203,6 @@ Pairs parsePoints(const std::string& path, Arena& targetArena) {
         }
     }
 
+    close(fd);
     return {parsedPairs, static_cast<u64>(currentPair+1)};
 }

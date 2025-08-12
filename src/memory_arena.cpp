@@ -2,6 +2,7 @@
 #include <sys/mman.h>
 #include <stdio.h>
 #include <assert.h>
+#include <unistd.h>
 
 #include "types.cpp"
 
@@ -30,6 +31,22 @@ struct Arena {
         data = memory;
         current = 0;
         size = trueAllocSize;
+    }
+
+    void* pageAllignedAlloc(u64 allocSize) {
+        u64 ps = static_cast<u64>(sysconf(_SC_PAGESIZE));
+
+        u64 aligned = (current + ps - 1) & ~static_cast<u64>(ps - 1);
+        if (size < allocSize + aligned) {
+            printf("Warning: arena ran out of memory!\n");
+            return nullptr;
+        }
+
+        current = aligned;
+        void* ptr = static_cast<char*>(data) + current;
+        current += allocSize;
+
+        return ptr;
     }
 
     void* alloc(u64 allocSize) {
