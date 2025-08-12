@@ -12,6 +12,10 @@
 #include "memory_arena.cpp"
 #include "data_structures.cpp"
 
+#define KB(val) val * 1024
+#define MB(val) val * 1024 * 1024
+#define GB(val) val * 1024 * 1024 * 1024
+
 typedef uint8_t b8;
 
 struct Pair {
@@ -80,7 +84,9 @@ Answers readAnswers(std::string path) {
     };
 }
 
-b8 mapFileToString(i32 fd, size_t fileSize, String& dest, u64 offset, u64 blockSize) {
+b8 mapFileToString(i32 fd, String& dest, u64 offset, u64 blockSize) {
+    TimeThroughput("mapFileToString", blockSize);
+
     if(blockSize == 0) return false;
     u64 pageSize = static_cast<u64>(sysconf(_SC_PAGESIZE));
 
@@ -107,8 +113,8 @@ Pairs parsePoints(const std::string& path, Arena& targetArena) {
     struct stat Stat;
     stat(path.data(), &Stat);
 
-    u64 MB_100 = 100 * 1024 * 1024;
-    u64 MB_16 = 16 * 1024 * 1024;
+    u64 MB_100 = MB(100);
+    u64 MB_16 = MB(16);
 
     Arena arena(MB_100);
     if(!arena.data) {
@@ -139,28 +145,21 @@ Pairs parsePoints(const std::string& path, Arena& targetArena) {
         return { nullptr, 0 };
     }
 
+    u64 total = static_cast<u64>(Stat.st_size);
 
-    u64 totalReadBytes = static_cast<u64>(Stat.st_size);
-    u64 j = 0;
-    u64 blocksToRead = totalReadBytes / MB_16;
+    bool readingField = false;
+    bool readingValue = false;
+    i64 currentPair = -1;
 
-    while (j < blocksToRead) {
-        b8 mapStatus = mapFileToString(fd, static_cast<size_t>(Stat.st_size), contents, j*MB_16, MB_16);
-        totalReadBytes -= j*MB_16;
+    for (uint64_t off = 0; off < total; off += MB_16) {
+        size_t chunk = static_cast<size_t>(std::min<uint64_t>(MB_16, total - off));
 
-        if(!mapStatus) {
-            perror("Error mapping the file!");
+        if (!mapFileToString(fd, contents, off, chunk)) {
+            perror("mapFileToString");
             return { nullptr, 0 };
         }
 
-        if (!contents.data) {
-            return { nullptr, 0 };
-        }
-
-        bool readingField = false;
-        bool readingValue = false;
-
-        i64 currentPair = -1;
+        contents.size = chunk;
         for (u64 i = 0; i < contents.size; ++i) {
             switch (contents[i]) {
                 case '{':
@@ -169,7 +168,6 @@ Pairs parsePoints(const std::string& path, Arena& targetArena) {
                     continue;
                 case ':':
                     readingValue = true;
-                    value.data = contents.data + i + 1;
                     continue;
                 case ',':
                 case '}':
@@ -177,10 +175,6 @@ Pairs parsePoints(const std::string& path, Arena& targetArena) {
                     break;
                 case '"':
                     readingField ^= 1;
-                    if (readingField) {
-                        field.data = contents.data + i + 1;
-                        field.size = 0;
-                    }
                     continue;
                 case '[':
                 case ']':
@@ -191,8 +185,15 @@ Pairs parsePoints(const std::string& path, Arena& targetArena) {
 
             if (std::isspace(contents[i])) continue;
 
-            field.size += readingField;
-            value.size += readingValue;
+            if (readingField) {
+                field.data[field.size] = contents.data[i];
+                field.size++;
+            }
+
+            if (readingValue) {
+                value.data[value.size] = contents.data[i];
+                value.size++;
+            }
 
             if (!readingField && !readingValue) {
                 if(field == "x0") {
@@ -212,5 +213,5 @@ Pairs parsePoints(const std::string& path, Arena& targetArena) {
     }
 
     close(fd);
-    //return {parsedPairs, static_cast<u64>(currentPair+1)};
+    return {parsedPairs, static_cast<u64>(currentPair+1)};
 }
