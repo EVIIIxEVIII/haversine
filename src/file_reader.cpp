@@ -98,13 +98,15 @@ b8 mapFileToString(i32 fd, String& dest, u64 offset, u64 blockSize) {
 
     size_t alignedBlockSize = (blockSize + pageSize - 1) & ~(pageSize - 1);
 
-    i32 prot = PROT_READ | PROT_WRITE;
+    i32 prot = PROT_READ;
     i32 flags = MAP_PRIVATE | MAP_FIXED;
 
     void* p = mmap(dest.data, alignedBlockSize, prot, flags, fd, static_cast<off_t>(alignedOffset));
     if (p == MAP_FAILED) return false;
-
     dest.size = alignedBlockSize;
+
+    volatile char pageFault;
+    for(u64 i = 0; i < dest.size; i+=pageSize) pageFault = dest.data[i];
 
     return true;
 }
@@ -113,8 +115,9 @@ Pairs parsePoints(const std::string& path, Arena& targetArena) {
     struct stat Stat;
     stat(path.data(), &Stat);
 
+    TimeThroughput("parsePoints", static_cast<u64>(Stat.st_size));
     u64 MB_100 = MB(100);
-    u64 MB_16 = MB(16);
+    u64 chunkSize = MB(2);
 
     Arena arena(MB_100);
     if(!arena.data) {
@@ -132,10 +135,8 @@ Pairs parsePoints(const std::string& path, Arena& targetArena) {
     value.data = static_cast<char*>(arena.alloc(256*sizeof(char)));
     value.size = 0;
 
-    TimeThroughput("parsePoints", static_cast<u64>(Stat.st_size));
-
     String contents;
-    contents.data = static_cast<char*>(arena.pageAllignedAlloc(MB_16));
+    contents.data = static_cast<char*>(arena.pageAllignedAlloc(chunkSize));
     contents.size = 0;
 
     int fd = open(path.data(), O_RDONLY);
@@ -151,8 +152,8 @@ Pairs parsePoints(const std::string& path, Arena& targetArena) {
     bool readingValue = false;
     i64 currentPair = -1;
 
-    for (uint64_t off = 0; off < total; off += MB_16) {
-        size_t chunk = static_cast<size_t>(std::min<uint64_t>(MB_16, total - off));
+    for (u64 off = 0; off < total; off += chunkSize) {
+        size_t chunk = static_cast<size_t>(std::min<uint64_t>(chunkSize, total - off));
 
         if (!mapFileToString(fd, contents, off, chunk)) {
             perror("mapFileToString");
