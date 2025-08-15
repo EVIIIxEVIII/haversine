@@ -5,6 +5,7 @@
 #include <iomanip>
 
 #include "file_reader.cpp"
+#include "math.cpp"
 
 #define EARTH_RADIUS 6378
 
@@ -52,17 +53,19 @@ void validate(f64 computed, f64 answer) {
 f64 computeHaversineSum(Pairs pairs) {
     TimeThroughput("computeHaversineSum", pairs.size*sizeof(Pair));
     f64 haversineSum = 0;
+    Pair* ptr = pairs.data;
     for (u64 i = 0; i < pairs.size; ++i) {
         f64 val = haversine(
-            pairs.data[i].X0,
-            pairs.data[i].Y0,
-            pairs.data[i].X1,
-            pairs.data[i].Y1,
+            (*(ptr + i)).X0,
+            (*(ptr + i)).Y0,
+            (*(ptr + i)).X1,
+            (*(ptr + i)).Y1,
             EARTH_RADIUS
         );
 
         haversineSum += val;
     }
+
     return haversineSum;
 }
 
@@ -85,6 +88,8 @@ int main(int argc, char** argv) {
         printf("Failed to allocate the target arena!\n");
         return 1;
     }
+
+    haversine(-145.184799, -5.300685, 34.992349, 5.298757, 6378);
 
     startProfiling();
     const char* jsonFile = argv[1];
