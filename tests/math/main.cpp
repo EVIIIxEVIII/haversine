@@ -1,6 +1,7 @@
 #include <cstdlib>
 #include <cmath>
 #include <stdio.h>
+#include <immintrin.h>
 
 #include "types.cpp"
 
@@ -11,7 +12,7 @@ struct Points {
 
 Points sampleLinearly(f64 from, f64 to, u64 count) {
     Points points;
-    points.data = static_cast<f64*>(aligned_alloc(64, sizeof(f64) * (count+1)));
+    points.data = static_cast<f64*>(malloc(sizeof(f64) * (count+1)));
     points.count = count + 1;
 
     f64 gap = (to - from) / static_cast<f64>(count);
@@ -33,6 +34,14 @@ f64 maxAbsErr(f64 func1(f64), f64 func2(f64), Points pts) {
     }
 
     return max;
+}
+
+f64 intrinsic_sqrt(f64 x) {
+    __m128d src = _mm_set_sd(x);
+
+    __m128d res = _mm_sqrt_sd(src, src);
+
+    return _mm_cvtsd_f64 (res);
 }
 
 f64 fast_sin(f64 x) {
